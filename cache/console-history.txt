@@ -1,0 +1,123 @@
+console.log("User1 WETH balance:", ethers.formatEther(balance));
+console.log("User1 WETH balance:", ethers.formatEther
+const balance = await WETH.balanceOf(user1Address);
+const user1Address = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
+);
+  "0x5FbDB2315678afecb367f032d93F642f64180aa3" // Your WETH address
+  "MockERC20",
+const WETH = await ethers.getContractAt(
+const balance = await WETH.balanceOf(user1Address);
+const user1Address = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
+);
+  "0x5FbDB2315678afecb367f032d93F642f64180aa3" // Your WETH address
+  "MockERC20",
+const WETH = await ethers.getContractAt(
+.exit
+console.log(balance);
+const balance = await WETH.balanceOf(deployer.address);
+console.log("Your WETH balance:", ethers.formatEther(balance));
+console.log("Your WETH balance:", ethers.formatEther
+const balance = await WETH.balanceOf(deployer.address);
+const [deployer] = await ethers.getSigners();
+);
+  "0x5FbDB2315678afecb367f032d93F642f64180aa3" // Your WETH address from deploy-local
+  "MockERC20",
+const WETH = await ethers.getContractAt(
+.exit
+console.log("New balance:", ethers.formatEther(balance)); // Should be 100
+await WETH.mint(deployer.address, ethers.parseEther("100"));
+console.log("LendingPool allowance:", ethers.formatEther(allowance));
+const allowance = await WETH.allowance(deployer.address, lendingPoolAddress);
+const lendingPoolAddress = "0x12456Fa31e57F91B70629c1196337074c966492a";
+console.log("Your WETH balance:", ethers.formatEther(balance));
+const balance = await WETH.balanceOf(deployer.address);
+const [deployer] = await ethers.getSigners();
+);
+  "0x5FbDB2315678afecb367f032d93F642f64180aa3" // Your WETH address from deploy-local
+  "MockERC20",
+const WETH = await ethers.getContractAt(
+console.log("Your WETH balance:", ethers.formatEther(balance));
+// Checconst balance = await WETH.balanceOf(deployer.address);
+const [deployer] = await ethers.getSigners();
+);
+  "0x5FbDB2315678afecb367f032d93F642f64180aa3" // Your WETH address from deploy-local
+  "MockERC20",
+const WETH = await ethers.getContractAt(
+console.log("Your WETH balance:", ethers.formatEther(balance));
+const balance = await WETH.balanceOf(deployer.address);
+);
+  "0x5FbDB2315678afecb367f032d93F642f64180aa3" // Your WETH address from deploy-local
+  "MockERC20",
+const WETH = await ethers.getContractAt(
+const balance = await WETH.balanceOf(deployer.address);
+const [deployer] = await ethers.getSigners();
+const WETH = await ethers.getContractAt( "MockERC20", "0x5FbDB2315678afecb367f032d93F642f64180aa3" // Your WETH address from deploy-local );
+console.log("Transaction status:", tx3.status);
+const tx3 = await ethers.provider.getTransactionReceipt("0x68a880bf9c148c8152cfe8593a9ba80d56e06b257e282991bcf8bb7090642449")
+console.log("Transaction status:", tx.status);
+const tx = await ethers.provider.getTransactionReceipt("0xad927ce08e31cc9f8cfa01ee4574c29f1d713a112ecc40f294d1727f9ff665db");
+await ethers.provider.getCode("0x12456Fa31e57F91B70629c1196337074c966492a");
+await ethers.provider.getBlockNumber();
+console.log(net.name);
+console.log(net.chainId);
+const net = await ethers.provider.getNetwork();
+await ethers.provider.getBlockNumber();
+await ethers.provider.getNetwork();
+.exit
+yarn hardhat node
+await ethers.provider.getNetwork();
+yarn hardhat console --network localhost
+await ethers.provider.getBlockNumber();
+await ethers.provider.getNetwork();
+console.log("Transaction status:", tx2.status);
+const tx2 = await ethers.provider.getTransactionReceipt( "0xf6dd60589fd93ce23a17e0d180e1e78a4fa115b168a904cea184b53184c29b06");
+const tx = await ethers.provider.getTransactionReceipt( "0xf6dd60589fd93ce23a17e0d180e1e78a4fa115b168a904cea184b53184c29b06");
+console.log("Gas used:", tx.gasUsed.toString());
+console.log("Logs count:", tx.logs.length);
+console.log("Transaction status:", tx.status);
+);
+  "0x9552fd224ed2ea04adf0b49d8be971a7d98ae4d20b0af78bf37e1c9a52ea8244"
+const tx = await ethers.provider.getTransactionReceipt(
+f
+  });
+    offerType: offer.offerType.toString()
+    isActive: offer.isActive,
+    creator: offer.creator,
+    offerId: offer.offerId.toString(),
+  console.log("Offer details:", {
+  const offer = await LendingPool.getLoanOffer(1);
+if (nextOfferId > 1n) {
+console.log("Next Offer ID:", nextOfferId.toString());
+const nextOfferId = await LendingPool.nextOfferId();
+);
+  "0x12456Fa31e57F91B70629c1196337074c966492a"
+  "LendingPool",
+const LendingPool = await ethers.getContractAt(
+console.log("Next Offer ID:", nextOfferId.toString());
+);
+  "0x12456Fa31e57F91B70629c1196337074c966492a"
+  "LendingPool",
+const LendingPool = await ethers.getContractAt(
+}
+  console.log("Active borrower requests:", borrowerRequests.map(id => id.toString()));
+  console.log("Active lender offers:", lenderOffers.map(id => id.toString()));
+  const borrowerRequests = await LendingPool.getActiveBorrowerRequestIds();
+  const lenderOffers = await LendingPool.getActiveLenderOfferIds();
+  });
+    offerType: offer.offerType.toString()
+    isActive: offer.isActive,
+    creator: offer.creator,
+    offerId: offer.offerId.toString(),
+  console.log("Offer details:", {
+  const offer = await LendingPool.getLoanOffer(1);
+if (nextOfferId > 1n) {
+const nextOfferId = await LendingPconsole.log("Next Offer ID:", nextOfferId.toString());
+);
+  "0x12456Fa31e57F91B70629c1196337074c966492a"
+  "LendingPool",
+const LendingPool = await ethers.getContractAt(
+const LendingPool = await ethers.getContractAt(  "LendingPool",  "0x12456Fa31e57F91B70629c1196337074c966492a" // Your address from transaction);// Check if any offers existconst nextOfferId = await LendingPool.nextOfferId();console.log("Next Offer ID:", nextOfferId.toString());// If > 1, offer exists. Check it:if (nextOfferId > 1n) {  const offer = await LendingPool.getLoanOffer(1);  console.log("Offer details:", {    offerId: offer.offerId.toString(),    creator: offer.creator,    isActive: offer.isActive,    offerType: offer.offerType.toStriners = await LendingPool.getActiveLenderOfferIds();  const borrowerRequests = await LendingPool.getAcder offers:", lenderOffers.map(id => id.toString()));  console.log("Active borrower requests:", borrowerRequests.map(id => id.toString()));}
+const nextOfferId = await LendingPool.nextOfferId();
+nextOfferId = await LendingPool.nextOfferId();
+const nextOfferId = await LendingPool.nextOfferId();
+const LendingPool = await ethers.getContractAt(  "LendingPool",  "0x12456Fa31e57F91B70629c1196337074c966492a" 

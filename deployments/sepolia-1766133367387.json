@@ -1,0 +1,42 @@
+{
+  "network": "sepolia",
+  "chainId": "11155111",
+  "deployer": "0x449c099a5CdfD535cdf8C2166fF1D019F21b0048",
+  "timestamp": "2025-12-19T08:34:58.589Z",
+  "contracts": {
+    "reputationManager": "0xA0B1aD399eA5eF158874d0F8e24c916eeac1b407",
+    "priceOracle": "0x27a578d1A431781FC36EB7DfBb550e35346881Eb",
+    "collateralManager": "0x44a4Cce1a72B827beEEf2EEc5695F8603B4f81D1",
+    "lendingPool": "0xcdC1F215B6653A41b9D6BD24959770F3fB1E3076",
+    "coSigningManager": "0x928238AA35238ab9e5Ac9a68f385378a92720F95",
+    "lendingPoolLens": "0xe5B5b9106c73822baB21D86cfaEDCf199e891EF3"
+  },
+  "configuration": {
+    "platformFeeRate": 100,
+    "feeCollector": "0x449c099a5CdfD535cdf8C2166fF1D019F21b0048",
+    "priceFeeds": {
+      "ETH_USD": "0x694AA1769357215DE4FAC081bf1f309aDC325306",
+      "BTC_USD": "0x1b44F3514812d835EB1BDB0acB33d3fA3351Ee43",
+      "USDC_USD": "0xA2F78ab2355fe2f984D808B5CeE7FD0A93D5270E"
+    },
+    "tokenAddresses": {
+      "WETH": "0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9",
+      "WBTC": "0xCfC922268d0F60EE5Fc41528d3BFef20578Ad78F",
+      "USDC": "0xE684ddb908B015d4EBEb6Ba9AD7eF0A2D1Ec6eb7"
+    },
+    "supportedCollateral": [
+      "WETH",
+      "WBTC",
+      "USDC"
+    ]
+  },
+  "roles": {
+    "reputationManager": {
+      "LENDING_POOL_ROLE": "0xa05e016071881d2170d364744d63b2e41aeb933bc5c5727596db7b66f663c3ea",
+      "COSIGNING_ROLE": "0xc57b1a971a6dabd3b6ab9a86617703c4a24eeaeab6f412f8fe26bc7593b157a1"
+    },
+    "collateralManager": {
+      "LENDING_POOL_ROLE": "0xa05e016071881d2170d364744d63b2e41aeb933bc5c5727596db7b66f663c3ea"
+    }
+  }
+}
