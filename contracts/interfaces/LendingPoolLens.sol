@@ -107,4 +107,26 @@ contract LendingPoolLens {
             (loan.terms.principalAmount * loan.terms.interestRate) /
             pool.BASIS_POINTS();
     }
+
+    function getPlatformStats()
+        external
+        view
+        returns (
+            uint256 totalLoans,
+            uint256 totalOffers,
+            uint256 activeLenderOffers,
+            uint256 activeBorrowerRequests,
+            uint256 platformFeeRate
+        )
+    {
+        // Counters live in LendingPool
+        totalLoans = pool.nextLoanId() - 1;
+        totalOffers = pool.nextOfferId() - 1;
+
+        // Active offers
+        activeLenderOffers = pool.getActiveLenderOfferIds().length;
+        activeBorrowerRequests = pool.getActiveBorrowerRequestIds().length;
+
+        platformFeeRate = pool.platformFeeRate();
+    }
 }

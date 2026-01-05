@@ -120,6 +120,17 @@ class ContractLoader {
       this.provider
     );
 
+    //Load LendingPoolLens
+    const lendingPoolLensArtifact = require(
+      path.join(artifactsPath, "LendingPoolLens.sol", "LendingPoolLens.json")
+    );
+
+    this.contracts.lendingPoolLens = new ethers.Contract(
+      addresses.lendingPoolLens,
+      lendingPoolLensArtifact.abi,
+      this.provider
+    );
+
     // Load CoSigningManager
     const coSigningManagerArtifact = require(
       path.join(artifactsPath, "CoSigningManager.sol", "CoSigningManager.json")
@@ -130,6 +141,7 @@ class ContractLoader {
       this.provider
     );
 
+    console.log("Loaded contracts:", Object.keys(this.contracts));
     console.log("✅ All contracts loaded successfully");
 
     return this.contracts;

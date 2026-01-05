@@ -1,3 +1,5 @@
+.exit
+await ethers.provider.getCode("0x8A791620dd6260079BF849Dc5567aDC3F2FdC318")
 console.log("User1 WETH balance:", ethers.formatEther(balance));
 console.log("User1 WETH balance:", ethers.formatEther
 const balance = await WETH.balanceOf(user1Address);

@@ -37,9 +37,9 @@ export const CONTRACT_ADDRESSES = {
 
 // ============ Token Addresses ============
 export const TOKEN_ADDRESSES = {
-  WETH: "0xE2b5bDE7e80f89975f7229d78aD9259b2723d11F",
-  USDC: "0xC6c5Ab5039373b0CBa7d0116d9ba7fb9831C3f42",
-  WBTC: "0x4ea0Be853219be8C9cE27200Bdeee36881612FF2",
+  WETH: "0x5FbDB2315678afecb367f032d93F642f64180aa3", //Sepolia: 0xE2b5bDE7e80f89975f7229d78aD9259b2723d11F
+  USDC: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512", //Sepolia: 0xC6c5Ab5039373b0CBa7d0116d9ba7fb9831C3f42
+  WBTC: "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0", //Sepolia: 0x4ea0Be853219be8C9cE27200Bdeee36881612FF2
 };
 
 // ============ API Configuration ============
@@ -186,6 +186,13 @@ export const LENDING_POOL_ABI = [
   "function getUserLoans(address user) view returns (uint256[])",
   "function nextLoanId() view returns (uint256)",
   "function nextOfferId() view returns (uint256)",
+];
+
+// LendingPoolLens ABI
+export const LENDING_POOL_LENS_ABI = [
+  "function getPlatformStats() view returns (uint256,uint256)",
+  "function getActiveLenderOffers() view returns (uint256[])",
+  "function getActiveBorrowerRequests() view returns (uint256[])",
 ];
 
 // CollateralManager ABI

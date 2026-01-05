@@ -124,19 +124,21 @@ class LoansService {
   }
 
   async getPlatformStats() {
-    const contract = blockchainService.getContract("lendingPool");
+    const lens = blockchainService.getContract("lendingPoolLens");
 
-    const totalLoans = await contract.nextLoanId();
-    const totalOffers = await contract.nextOfferId();
-    const activeLenderOffers = await contract.getActiveLenderOfferIds();
-    const activeBorrowerRequests = await contract.getActiveBorrowerRequestIds();
-    const platformFeeRate = await contract.platformFeeRate();
+    const [
+      totalLoans,
+      totalOffers,
+      activeLenderOffers,
+      activeBorrowerRequests,
+      platformFeeRate,
+    ] = await lens.getPlatformStats();
 
     return {
-      totalLoans: (Number(totalLoans) - 1).toString(),
-      totalOffers: (Number(totalOffers) - 1).toString(),
-      activeLenderOffers: activeLenderOffers.length,
-      activeBorrowerRequests: activeBorrowerRequests.length,
+      totalLoans: totalLoans.toString(),
+      totalOffers: totalOffers.toString(),
+      activeLenderOffers: Number(activeLenderOffers),
+      activeBorrowerRequests: Number(activeBorrowerRequests),
       platformFeeRate: (Number(platformFeeRate) / 100).toFixed(2) + "%",
     };
   }
