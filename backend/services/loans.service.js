@@ -36,7 +36,7 @@ class LoansService {
     const loans = await Promise.all(
       loanIds.map(async (id) => {
         const loan = await contract.getLoan(id);
-        const amountDue = await contract.calculateAmountDue(id);
+        const amountDue = await this.calculateAmountDue(loan);
         const isOverdue = await contract.isLoanOverdue(id);
 
         return this.formatLoan(loan, id, amountDue, isOverdue);
@@ -49,10 +49,20 @@ class LoansService {
   async getLoanDetails(loanId) {
     const contract = blockchainService.getContract("lendingPool");
     const loan = await contract.getLoan(loanId);
-    const amountDue = await contract.calculateAmountDue(loanId);
+    const amountDue = await this.calculateAmountDue(loan);
     const isOverdue = await contract.isLoanOverdue(loanId);
 
     return this.formatLoan(loan, loanId, amountDue, isOverdue);
+  }
+
+  // ✅ Helper to calculate amount due
+  calculateAmountDue(loan) {
+    const principal = loan.terms.principalAmount;
+    const interestRate = loan.terms.interestRate;
+    const BASIS_POINTS = 10000n;
+
+    const interest = (principal * interestRate) / BASIS_POINTS;
+    return principal + interest;
   }
 
   formatOffer(offer, offerId) {
@@ -123,24 +133,34 @@ class LoansService {
     };
   }
 
+  // ✅ FIXED: Handle the 5 return values correctly
   async getPlatformStats() {
-    const lens = blockchainService.getContract("lendingPoolLens");
+    try {
+      const lens = blockchainService.getContract("lendingPoolLens");
 
-    const [
-      totalLoans,
-      totalOffers,
-      activeLenderOffers,
-      activeBorrowerRequests,
-      platformFeeRate,
-    ] = await lens.getPlatformStats();
+      // getPlatformStats returns 5 values as an object
+      const result = await lens.getPlatformStats();
 
-    return {
-      totalLoans: totalLoans.toString(),
-      totalOffers: totalOffers.toString(),
-      activeLenderOffers: Number(activeLenderOffers),
-      activeBorrowerRequests: Number(activeBorrowerRequests),
-      platformFeeRate: (Number(platformFeeRate) / 100).toFixed(2) + "%",
-    };
+      console.log("Platform stats result:", result);
+
+      return {
+        totalLoans: result[0].toString(),
+        totalOffers: result[1].toString(),
+        activeLenderOffers: Number(result[2]),
+        activeBorrowerRequests: Number(result[3]),
+        platformFeeRate: (Number(result[4]) / 100).toFixed(2) + "%",
+      };
+    } catch (error) {
+      console.error("Error getting platform stats:", error);
+      // Return default values if there's an error
+      return {
+        totalLoans: "0",
+        totalOffers: "0",
+        activeLenderOffers: 0,
+        activeBorrowerRequests: 0,
+        platformFeeRate: "1.00%",
+      };
+    }
   }
 }
 

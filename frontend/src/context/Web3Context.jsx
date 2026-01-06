@@ -9,6 +9,7 @@ import {
   COLLATERAL_MANAGER_ABI,
   COSIGNING_MANAGER_ABI,
   PRICE_ORACLE_ABI,
+  LENDING_POOL_LENS_ABI, // ✅ Import this
   ERC20_ABI,
 } from '../utils/constants';
 
@@ -37,11 +38,14 @@ export const Web3Provider = ({ children }) => {
     collateralManager: null,
     coSigningManager: null,
     priceOracle: null,
+    lendingPoolLens: null, // ✅ Add this
   });
 
   // Initialize contracts
   const initializeContracts = useCallback((signerOrProvider) => {
     try {
+      console.log('🔧 Initializing contracts with addresses:', CONTRACT_ADDRESSES);
+
       const reputationManager = new ethers.Contract(
         CONTRACT_ADDRESSES.reputationManager,
         REPUTATION_MANAGER_ABI,
@@ -72,13 +76,23 @@ export const Web3Provider = ({ children }) => {
         signerOrProvider
       );
 
+      // ✅ Initialize LendingPoolLens
+      const lendingPoolLens = new ethers.Contract(
+        CONTRACT_ADDRESSES.lendingPoolLens,
+        LENDING_POOL_LENS_ABI,
+        signerOrProvider
+      );
+
       setContracts({
         reputationManager,
         lendingPool,
         collateralManager,
         coSigningManager,
         priceOracle,
+        lendingPoolLens, // ✅ Add this
       });
+
+      console.log('✅ All contracts initialized successfully');
     } catch (err) {
       console.error('Failed to initialize contracts:', err);
       setError('Failed to initialize contracts');
@@ -133,11 +147,12 @@ export const Web3Provider = ({ children }) => {
       collateralManager: null,
       coSigningManager: null,
       priceOracle: null,
+      lendingPoolLens: null,
     });
   }, []);
 
   // Switch network
-  const switchNetwork = useCallback(async (targetNetwork = 'sepolia') => {
+  const switchNetwork = useCallback(async (targetNetwork = 'localhost') => {
     if (!window.ethereum) {
       setError('Please install MetaMask');
       return false;

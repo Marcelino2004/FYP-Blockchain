@@ -179,6 +179,7 @@ async function main() {
   console.log(`   PriceOracle: ${await priceOracle.getAddress()}`);
   console.log(`   CollateralManager: ${await collateralManager.getAddress()}`);
   console.log(`   LendingPool: ${await lendingPool.getAddress()}`);
+  console.log(`   LendingPoolLens: ${await lens.getAddress()}`);
   console.log(`   CoSigningManager: ${await coSigningManager.getAddress()}`);
   console.log("\n" + "=".repeat(70));
 }

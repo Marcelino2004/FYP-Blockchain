@@ -582,6 +582,38 @@ contract LendingPool is AccessControl, ReentrancyGuard {
         return userOffers[user];
     }
 
+    /**
+     * @notice Get the next loan ID (for counting total loans)
+     * @return The next loan ID
+     */
+    function getNextLoanId() external view returns (uint256) {
+        return nextLoanId;
+    }
+
+    /**
+     * @notice Get the next offer ID (for counting total offers)
+     * @return The next offer ID
+     */
+    function getNextOfferId() external view returns (uint256) {
+        return nextOfferId;
+    }
+
+    /**
+     * @notice Get the platform fee rate
+     * @return The platform fee rate in basis points
+     */
+    function getPlatformFeeRate() external view returns (uint256) {
+        return platformFeeRate;
+    }
+
+    /**
+     * @notice Get the basis points constant
+     * @return The basis points value (10000)
+     */
+    function getBasisPoints() external pure returns (uint256) {
+        return BASIS_POINTS;
+    }
+
     // ============ Admin Functions ============
 
     /**

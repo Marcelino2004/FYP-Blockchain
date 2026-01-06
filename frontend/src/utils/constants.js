@@ -32,6 +32,7 @@ export const CONTRACT_ADDRESSES = {
   priceOracle: import.meta.env.VITE_PRICE_ORACLE,
   collateralManager: import.meta.env.VITE_COLLATERAL_MANAGER,
   lendingPool: import.meta.env.VITE_LENDING_POOL,
+  lendingPoolLens: import.meta.env.VITE_LENDING_POOL_LENS,
   coSigningManager: import.meta.env.VITE_COSIGNING_MANAGER,
 };
 
@@ -190,9 +191,10 @@ export const LENDING_POOL_ABI = [
 
 // LendingPoolLens ABI
 export const LENDING_POOL_LENS_ABI = [
-  "function getPlatformStats() view returns (uint256,uint256)",
+  "function getPlatformStats() view returns (uint256 totalLoans, uint256 totalOffers, uint256 activeLenderOffers, uint256 activeBorrowerRequests, uint256 platformFeeRate)",
   "function getActiveLenderOffers() view returns (uint256[])",
   "function getActiveBorrowerRequests() view returns (uint256[])",
+  "function getUserLoans(address user) view returns (uint256[])",
 ];
 
 // CollateralManager ABI
@@ -240,6 +242,63 @@ export const ERC20_ABI = [
   "function transfer(address to, uint256 amount) returns (bool)",
   "function transferFrom(address from, address to, uint256 amount) returns (bool)",
 ];
+
+// ============ usePlatformStats Hook (UPDATED) ============
+export const usePlatformStats = () => {
+  const { contracts } = useWeb3(); // ✅ Use contracts from Web3Context
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const fetchStats = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // ✅ Try frontend-direct call first (faster)
+      if (contracts.lendingPoolLens) {
+        console.log("📊 Fetching platform stats from contract...");
+        const result = await contracts.lendingPoolLens.getPlatformStats();
+
+        const statsData = {
+          totalLoans: result[0].toString(),
+          totalOffers: result[1].toString(),
+          activeLenderOffers: Number(result[2]),
+          activeBorrowerRequests: Number(result[3]),
+          platformFeeRate: (Number(result[4]) / 100).toFixed(2) + "%",
+        };
+
+        console.log("✅ Platform stats:", statsData);
+        setStats(statsData);
+      } else {
+        // ✅ Fallback to API if contracts not loaded
+        console.log("📊 Fetching platform stats from API...");
+        const data = await api.getPlatformStats();
+        setStats(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch platform stats:", err);
+      setError(err.message);
+
+      // ✅ Set default values on error
+      setStats({
+        totalLoans: "0",
+        totalOffers: "0",
+        activeLenderOffers: 0,
+        activeBorrowerRequests: 0,
+        platformFeeRate: "1.00%",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [contracts]);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  return { stats, loading, error, refetch: fetchStats };
+};
 
 // ============ Error Messages ============
 export const ERROR_MESSAGES = {

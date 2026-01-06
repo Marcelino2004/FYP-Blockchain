@@ -62,6 +62,8 @@ class ContractLoader {
 
     const { contracts: addresses } = this.deploymentInfo;
 
+    console.log("📋 Contract addresses:", addresses);
+
     // Load contract artifacts
     const artifactsPath = path.join(
       __dirname,
@@ -120,11 +122,10 @@ class ContractLoader {
       this.provider
     );
 
-    //Load LendingPoolLens
+    // ✅ Load LendingPoolLens
     const lendingPoolLensArtifact = require(
       path.join(artifactsPath, "LendingPoolLens.sol", "LendingPoolLens.json")
     );
-
     this.contracts.lendingPoolLens = new ethers.Contract(
       addresses.lendingPoolLens,
       lendingPoolLensArtifact.abi,
@@ -141,8 +142,7 @@ class ContractLoader {
       this.provider
     );
 
-    console.log("Loaded contracts:", Object.keys(this.contracts));
-    console.log("✅ All contracts loaded successfully");
+    console.log("✅ Loaded contracts:", Object.keys(this.contracts));
 
     return this.contracts;
   }

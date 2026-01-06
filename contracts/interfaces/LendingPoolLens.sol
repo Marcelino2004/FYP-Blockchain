@@ -108,6 +108,7 @@ contract LendingPoolLens {
             pool.BASIS_POINTS();
     }
 
+    // ✅ FIXED: Return correct number of values matching the ABI
     function getPlatformStats()
         external
         view
@@ -123,10 +124,18 @@ contract LendingPoolLens {
         totalLoans = pool.nextLoanId() - 1;
         totalOffers = pool.nextOfferId() - 1;
 
-        // Active offers
+        // Active offers - get actual arrays and return their length
         activeLenderOffers = pool.getActiveLenderOfferIds().length;
         activeBorrowerRequests = pool.getActiveBorrowerRequestIds().length;
 
         platformFeeRate = pool.platformFeeRate();
+
+        return (
+            totalLoans,
+            totalOffers,
+            activeLenderOffers,
+            activeBorrowerRequests,
+            platformFeeRate
+        );
     }
 }
