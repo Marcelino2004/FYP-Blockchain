@@ -71,10 +71,13 @@ async function main() {
   await lendingPool.waitForDeployment();
   console.log("   ✅ LendingPool:", await lendingPool.getAddress());
 
+  // ✅ Deploy LendingPoolLens
   const LendingPoolLens = await ethers.getContractFactory("LendingPoolLens");
-  const lens = await LendingPoolLens.deploy(await lendingPool.getAddress());
-  await lens.waitForDeployment();
-  console.log("   ✅ LendingPoolLens:", await lens.getAddress());
+  const lendingPoolLens = await LendingPoolLens.deploy(
+    await lendingPool.getAddress()
+  );
+  await lendingPoolLens.waitForDeployment();
+  console.log("   ✅ LendingPoolLens:", await lendingPoolLens.getAddress());
 
   const CoSigningManager = await ethers.getContractFactory("CoSigningManager");
   const coSigningManager = await CoSigningManager.deploy(
@@ -179,9 +182,75 @@ async function main() {
   console.log(`   PriceOracle: ${await priceOracle.getAddress()}`);
   console.log(`   CollateralManager: ${await collateralManager.getAddress()}`);
   console.log(`   LendingPool: ${await lendingPool.getAddress()}`);
-  console.log(`   LendingPoolLens: ${await lens.getAddress()}`);
+  console.log(`   LendingPoolLens: ${await lendingPoolLens.getAddress()}`);
   console.log(`   CoSigningManager: ${await coSigningManager.getAddress()}`);
   console.log("\n" + "=".repeat(70));
+
+  // ✅ Test that LendingPoolLens works
+  console.log("\n🧪 Testing LendingPoolLens...");
+  try {
+    const stats = await lendingPoolLens.getPlatformStats();
+    console.log("   ✅ Platform Stats Test:");
+    console.log(`      Total Loans: ${stats[0]}`);
+    console.log(`      Total Offers: ${stats[1]}`);
+    console.log(`      Active Lender Offers: ${stats[2]}`);
+    console.log(`      Active Borrower Requests: ${stats[3]}`);
+    console.log(`      Platform Fee Rate: ${stats[4]}`);
+  } catch (error) {
+    console.log("   ❌ LendingPoolLens test failed:", error.message);
+  }
+  console.log("\n" + "=".repeat(70));
+
+  // ✅ Save deployment info for backend
+  const fs = require("fs");
+  const path = require("path");
+
+  const deploymentInfo = {
+    network: "localhost",
+    chainId: "31337",
+    deployer: deployer.address,
+    timestamp: new Date().toISOString(),
+    contracts: {
+      reputationManager: await reputationManager.getAddress(),
+      priceOracle: await priceOracle.getAddress(),
+      collateralManager: await collateralManager.getAddress(),
+      lendingPool: await lendingPool.getAddress(),
+      lendingPoolLens: await lendingPoolLens.getAddress(),
+      coSigningManager: await coSigningManager.getAddress(),
+    },
+    tokens: {
+      WETH: await weth.getAddress(),
+      USDC: await usdc.getAddress(),
+      WBTC: await wbtc.getAddress(),
+    },
+  };
+
+  const deploymentsDir = path.join(__dirname, "..", "deployments");
+  if (!fs.existsSync(deploymentsDir)) {
+    fs.mkdirSync(deploymentsDir, { recursive: true });
+  }
+
+  const filename = `localhost-${Date.now()}.json`;
+  fs.writeFileSync(
+    path.join(deploymentsDir, filename),
+    JSON.stringify(deploymentInfo, null, 2)
+  );
+
+  console.log(`\n💾 Deployment info saved to: deployments/${filename}\n`);
+
+  // ✅ Print .env format
+  console.log("\n📝 Update your frontend/.env with these addresses:\n");
+  console.log(
+    `VITE_REPUTATION_MANAGER=${await reputationManager.getAddress()}`
+  );
+  console.log(`VITE_PRICE_ORACLE=${await priceOracle.getAddress()}`);
+  console.log(
+    `VITE_COLLATERAL_MANAGER=${await collateralManager.getAddress()}`
+  );
+  console.log(`VITE_LENDING_POOL=${await lendingPool.getAddress()}`);
+  console.log(`VITE_LENDING_POOL_LENS=${await lendingPoolLens.getAddress()}`);
+  console.log(`VITE_COSIGNING_MANAGER=${await coSigningManager.getAddress()}`);
+  console.log("\n" + "=".repeat(70) + "\n");
 }
 
 main()

@@ -11,6 +11,14 @@ import MarketplacePage from './pages/MarketplacePage';
 import MyLoansPage from './pages/MyLoansPage';
 import ReputationPage from './pages/ReputationPage';
 import CoSigningPage from './pages/CoSigningPage';
+import TestPage from './pages/TestPage';
+
+console.log('🔧 CONTRACT_ADDRESSES from constants.js:', JSON.stringify(CONTRACT_ADDRESSES, null, 2));
+console.log('🔧 Environment variables:', JSON.stringify({
+  VITE_LENDING_POOL_LENS: import.meta.env.VITE_LENDING_POOL_LENS,
+  VITE_LENDING_POOL: import.meta.env.VITE_LENDING_POOL,
+  VITE_REPUTATION_MANAGER: import.meta.env.VITE_REPUTATION_MANAGER,
+}, null, 2));
 
 // Footer Component
 const Footer = () => {

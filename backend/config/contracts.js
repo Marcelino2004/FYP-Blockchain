@@ -19,14 +19,23 @@ class ContractLoader {
       throw new Error("Deployments directory not found!");
     }
 
-    const files = fs.readdirSync(deploymentsDir);
-    const latestFile = files.sort().reverse()[0];
+    // Get all JSON files with their modification times
+    const files = fs
+      .readdirSync(deploymentsDir)
+      .filter((f) => f.endsWith(".json"))
+      .map((f) => ({
+        name: f,
+        time: fs.statSync(path.join(deploymentsDir, f)).mtime.getTime(),
+      }))
+      .sort((a, b) => b.time - a.time); // Sort by modification time (newest first)
 
-    if (!latestFile) {
+    if (files.length === 0) {
       throw new Error("No deployment file found!");
     }
 
+    const latestFile = files[0].name;
     console.log(`📄 Loading deployment: ${latestFile}`);
+    console.log(`   Modified: ${new Date(files[0].time).toISOString()}`);
 
     this.deploymentInfo = JSON.parse(
       fs.readFileSync(path.join(deploymentsDir, latestFile), "utf8")

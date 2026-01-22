@@ -1510,8 +1510,8 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\LendingPoolLens.sol": {
-      "lastModificationDate": 1767670465935,
-      "contentHash": "2b1e962792970aaa727f2cded27dbc3a",
+      "lastModificationDate": 1768115196450,
+      "contentHash": "e30fa94128565a1f36d391c751093eea",
       "sourceName": "contracts/interfaces/LendingPoolLens.sol",
       "solcConfig": {
         "version": "0.8.20",
