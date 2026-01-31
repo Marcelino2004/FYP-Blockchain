@@ -249,14 +249,15 @@ export const Web3Provider = ({ children }) => {
       if (accounts.length === 0) {
         disconnectWallet();
       } else if (accounts[0] !== account) {
+        console.log('🔄 Account changed to:', accounts[0]);
         setAccount(accounts[0]);
-        if (signer) {
-          initializeContracts(signer);
-        }
+        // Re-initialize contracts with new account
+        connectWallet();
       }
     };
 
     const handleChainChanged = () => {
+      console.log('🔄 Chain changed, reloading page...');
       window.location.reload();
     };
 
@@ -267,7 +268,8 @@ export const Web3Provider = ({ children }) => {
       window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
       window.ethereum.removeListener('chainChanged', handleChainChanged);
     };
-  }, [account, signer, disconnectWallet, initializeContracts]);
+  }, [account, disconnectWallet]);
+       
 
   // Auto-connect if previously connected
   useEffect(() => {

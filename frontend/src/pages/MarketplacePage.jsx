@@ -26,6 +26,7 @@ const MarketplacePage = () => {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [acceptModalOpen, setAcceptModalOpen] = useState(false);
   const [selectedOffer, setSelectedOffer] = useState(null);
+  const [cancelling, setCancelling] = useState(null);
 
   // Filter offers based on active tab
   const getFilteredOffers = () => {
@@ -37,8 +38,43 @@ const MarketplacePage = () => {
   const filteredOffers = getFilteredOffers();
 
   const handleAcceptOffer = (offer) => {
+    // Prevent users from accepting their own offers
+    if (offer.creator.toLowerCase() === account.toLowerCase()) {
+      alert("You cannot accept your own offer!");
+      return;
+    }
     setSelectedOffer(offer);
     setAcceptModalOpen(true);
+  };
+
+  const handleCancelOffer = async (offerId) => {
+    if (!contracts.lendingPool) {
+      alert('Contracts not initialized. Please reconnect your wallet.');
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to cancel this offer?')) {
+      return;
+    }
+
+    setCancelling(offerId);
+
+    try {
+      console.log('🚫 Cancelling offer:', offerId);
+      const tx = await contracts.lendingPool.cancelLoanOffer(offerId);
+      console.log('⏳ Waiting for confirmation...', tx.hash);
+      await tx.wait();
+      console.log('✅ Offer cancelled successfully');
+      
+      // Refresh the marketplace
+      refetch();
+      alert('Offer cancelled successfully!');
+    } catch (err) {
+      console.error('❌ Error cancelling offer:', err);
+      alert(`Failed to cancel offer: ${err.message || 'Unknown error'}`);
+    } finally {
+      setCancelling(null);
+    }
   };
 
   return (
@@ -119,7 +155,9 @@ const MarketplacePage = () => {
               key={offer.offerId} 
               offer={offer} 
               onAccept={handleAcceptOffer}
+              onCancel={handleCancelOffer}
               currentAccount={account}
+              cancelling={cancelling === offer.offerId}
             />
           ))}
         </div>
@@ -162,9 +200,9 @@ const MarketplacePage = () => {
 };
 
 // Offer Card Component
-const OfferCard = ({ offer, onAccept, currentAccount }) => {
+const OfferCard = ({ offer, onAccept, onCancel, currentAccount, cancelling }) => {
   const isLenderOffer = offer.offerType === 'LENDER_OFFER';
-  const isOwnOffer = offer.creator === currentAccount;
+  const isOwnOffer = currentAccount && offer.creator.toLowerCase() === currentAccount.toLowerCase();
 
   return (
     <Card hover className="flex flex-col h-full">
@@ -208,14 +246,27 @@ const OfferCard = ({ offer, onAccept, currentAccount }) => {
         </div>
       </div>
 
-      <Button 
-        variant={isLenderOffer ? 'success' : 'primary'} 
-        onClick={() => onAccept(offer)}
-        disabled={isOwnOffer || !currentAccount}
-        className="w-full"
-      >
-        {isOwnOffer ? 'Your Offer' : isLenderOffer ? 'Borrow Now' : 'Lend Now'}
-      </Button>
+      {/* Action Button - Shows Cancel for own offers, Accept for others */}
+      {isOwnOffer ? (
+        <Button 
+          variant="danger" 
+          onClick={() => onCancel(offer.offerId)}
+          disabled={cancelling}
+          loading={cancelling}
+          className="w-full"
+        >
+          {cancelling ? 'Cancelling...' : '🗑️ Cancel Offer'}
+        </Button>
+      ) : (
+        <Button 
+          variant={isLenderOffer ? 'success' : 'primary'} 
+          onClick={() => onAccept(offer)}
+          disabled={!currentAccount}
+          className="w-full"
+        >
+          {isLenderOffer ? 'Borrow Now' : 'Lend Now'}
+        </Button>
+      )}
     </Card>
   );
 };
@@ -223,7 +274,7 @@ const OfferCard = ({ offer, onAccept, currentAccount }) => {
 const CreateOfferModal = ({ isOpen, onClose, onSuccess }) => {
   const { contracts, account } = useWeb3();
   const [offerType, setOfferType] = useState('LENDER_OFFER');
-  const [selectedToken, setSelectedToken] = useState('WETH'); // ← Track which token user selects
+  const [selectedToken, setSelectedToken] = useState('WETH');
   const [formData, setFormData] = useState({
     principalAmount: '',
     interestRate: '10',
@@ -243,10 +294,13 @@ const CreateOfferModal = ({ isOpen, onClose, onSuccess }) => {
 
     try {
       if (!contracts.lendingPool) {
-        throw new Error('Contracts not initialized. Please connect your wallet.');
+        throw new Error('Contracts not initialized. Please reconnect your wallet.');
       }
 
-      // ✅ Use the selected token address from TOKEN_ADDRESSES
+      if (!account) {
+        throw new Error('Please connect your wallet first.');
+      }
+
       const tokenAddress = TOKEN_ADDRESSES[selectedToken];
       
       if (!tokenAddress) {
@@ -254,7 +308,7 @@ const CreateOfferModal = ({ isOpen, onClose, onSuccess }) => {
       }
 
       const loanTerms = {
-        tokenAddress: tokenAddress, // ← Use selected token
+        tokenAddress: tokenAddress,
         principalAmount: ethers.parseEther(formData.principalAmount),
         collateralAmount: ethers.parseEther(formData.collateralAmount),
         collateralToken: formData.collateralToken,
@@ -268,7 +322,6 @@ const CreateOfferModal = ({ isOpen, onClose, onSuccess }) => {
 
       console.log('📝 Creating loan offer with:', { offerTypeValue, loanTerms });
 
-      // ✅ If LENDER_OFFER, approve token spending first
       if (offerType === 'LENDER_OFFER') {
         console.log('💰 Approving token spending...');
         const tokenContract = new ethers.Contract(
@@ -285,7 +338,6 @@ const CreateOfferModal = ({ isOpen, onClose, onSuccess }) => {
         console.log('✅ Token approved');
       }
 
-      // ✅ Call the smart contract
       console.log('📤 Sending transaction...');
       const tx = await contracts.lendingPool.createLoanOffer(
         offerTypeValue,
@@ -321,7 +373,6 @@ const CreateOfferModal = ({ isOpen, onClose, onSuccess }) => {
           required
         />
 
-        {/* ✅ Token Selection Dropdown */}
         <Select
           label="Loan Token"
           value={selectedToken}
@@ -402,13 +453,10 @@ const AcceptOfferModal = ({ isOpen, onClose, offer, onSuccess }) => {
   const [collateralDepositId, setCollateralDepositId] = useState('');
   const [needsCollateral, setNeedsCollateral] = useState(false);
 
-  // Check if user needs to deposit collateral
   useEffect(() => {
     if (offer && offer.offerType === 'LENDER_OFFER') {
-      // Borrower accepting lender offer needs collateral
       setNeedsCollateral(parseFloat(offer.terms.collateralAmount) > 0);
     } else {
-      // Lender accepting borrow request doesn't need collateral
       setNeedsCollateral(false);
     }
   }, [offer]);
@@ -428,24 +476,13 @@ const AcceptOfferModal = ({ isOpen, onClose, offer, onSuccess }) => {
 
       console.log('📝 Accepting offer:', offer.offerId);
 
-      // ============ CASE 1: Accepting LENDER_OFFER (User is Borrower) ============
       if (isLenderOffer) {
-        // Step 1: Check if collateral is needed
-        if (needsCollateral && !collateralDepositId) {
-          // User needs to deposit collateral first
-          setError('Please deposit collateral first and enter the deposit ID');
-          setLoading(false);
-          return;
-        }
-
-        // Step 2: If no collateral needed, use deposit ID 0
         const depositId = needsCollateral ? parseInt(collateralDepositId) : 0;
 
         console.log('💼 Borrower accepting lender offer');
         console.log('   Offer ID:', offer.offerId);
         console.log('   Collateral Deposit ID:', depositId);
 
-        // Step 3: Accept the loan offer
         const tx = await contracts.lendingPool.acceptLoanOffer(
           offer.offerId,
           depositId
@@ -454,13 +491,9 @@ const AcceptOfferModal = ({ isOpen, onClose, offer, onSuccess }) => {
         console.log('⏳ Waiting for confirmation...', tx.hash);
         const receipt = await tx.wait();
         console.log('✅ Loan accepted!', receipt);
-      }
-
-      // ============ CASE 2: Accepting BORROW_REQUEST (User is Lender) ============
-      else {
+      } else {
         console.log('💰 Lender accepting borrow request');
 
-        // Step 1: Approve token spending
         const principalAmount = ethers.parseEther(offer.terms.principalAmount);
         const tokenAddress = offer.terms.tokenAddress;
 
@@ -479,10 +512,9 @@ const AcceptOfferModal = ({ isOpen, onClose, offer, onSuccess }) => {
         await approveTx.wait();
         console.log('   ✅ Token approved');
 
-        // Step 2: Accept the loan offer (collateral deposit ID is 0 for lender)
         const tx = await contracts.lendingPool.acceptLoanOffer(
           offer.offerId,
-          0 // Lender doesn't provide collateral
+          0
         );
 
         console.log('⏳ Waiting for confirmation...', tx.hash);
@@ -490,14 +522,12 @@ const AcceptOfferModal = ({ isOpen, onClose, offer, onSuccess }) => {
         console.log('✅ Loan accepted!', receipt);
       }
 
-      // Success!
       onSuccess();
       setLoading(false);
-      setCollateralDepositId(''); // Reset
+      setCollateralDepositId('');
     } catch (err) {
       console.error('❌ Error accepting offer:', err);
       
-      // Better error messages
       let errorMessage = 'Failed to accept offer';
       if (err.message.includes('insufficient')) {
         errorMessage = 'Insufficient balance or allowance';
@@ -530,7 +560,6 @@ const AcceptOfferModal = ({ isOpen, onClose, offer, onSuccess }) => {
           }
         </Alert>
 
-        {/* Offer Details Card */}
         <Card className="bg-gray-50">
           <div className="space-y-3">
             <div className="flex justify-between">
@@ -564,7 +593,6 @@ const AcceptOfferModal = ({ isOpen, onClose, offer, onSuccess }) => {
           </div>
         </Card>
 
-        {/* Collateral Input (only for borrowers accepting lender offers) */}
         {isLenderOffer && needsCollateral && (
           <div>
             <Alert variant="warning">
@@ -582,7 +610,6 @@ const AcceptOfferModal = ({ isOpen, onClose, offer, onSuccess }) => {
           </div>
         )}
 
-        {/* Action Summary */}
         <Card className="bg-blue-50 border-2 border-blue-200">
           <div className="space-y-2">
             <p className="font-semibold text-blue-900">What happens next:</p>
@@ -606,7 +633,6 @@ const AcceptOfferModal = ({ isOpen, onClose, offer, onSuccess }) => {
           </div>
         </Card>
 
-        {/* Action Buttons */}
         <div className="flex gap-4 pt-4">
           <Button variant="secondary" onClick={onClose} className="flex-1" disabled={loading}>
             Cancel

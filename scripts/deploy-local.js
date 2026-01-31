@@ -1,14 +1,20 @@
-//deploy to local hardhat network with mock tokens
+// deploy to local hardhat network with mock tokens
 
 const { ethers } = require("hardhat");
+const fs = require("fs");
+const path = require("path");
 
 async function main() {
   console.log("🚀 Deploying to Local Hardhat Network with Mocks\n");
 
-  const [deployer, user1, user2] = await ethers.getSigners();
+  const signers = await ethers.getSigners();
+  const deployer = signers[0];
+
   console.log("Deployer:", deployer.address);
 
+  // ─────────────────────────────────────────────────────────────
   // 1. Deploy mock tokens
+  // ─────────────────────────────────────────────────────────────
   console.log("\n📦 Deploying Mock Tokens...");
   const MockERC20 = await ethers.getContractFactory("MockERC20");
 
@@ -24,7 +30,9 @@ async function main() {
   await wbtc.waitForDeployment();
   console.log("   ✅ WBTC:", await wbtc.getAddress());
 
+  // ─────────────────────────────────────────────────────────────
   // 2. Deploy mock price feeds
+  // ─────────────────────────────────────────────────────────────
   console.log("\n📦 Deploying Mock Price Feeds...");
   const MockAggregator = await ethers.getContractFactory("MockV3Aggregator");
 
@@ -40,7 +48,9 @@ async function main() {
   await btcPriceFeed.waitForDeployment();
   console.log("   ✅ BTC/USD:", await btcPriceFeed.getAddress());
 
+  // ─────────────────────────────────────────────────────────────
   // 3. Deploy main contracts
+  // ─────────────────────────────────────────────────────────────
   console.log("\n📦 Deploying Main Contracts...");
 
   const ReputationManager =
@@ -57,7 +67,7 @@ async function main() {
   const CollateralManager =
     await ethers.getContractFactory("CollateralManager");
   const collateralManager = await CollateralManager.deploy(
-    await priceOracle.getAddress()
+    await priceOracle.getAddress(),
   );
   await collateralManager.waitForDeployment();
   console.log("   ✅ CollateralManager:", await collateralManager.getAddress());
@@ -66,15 +76,14 @@ async function main() {
   const lendingPool = await LendingPool.deploy(
     await reputationManager.getAddress(),
     await collateralManager.getAddress(),
-    deployer.address
+    deployer.address,
   );
   await lendingPool.waitForDeployment();
   console.log("   ✅ LendingPool:", await lendingPool.getAddress());
 
-  // ✅ Deploy LendingPoolLens
   const LendingPoolLens = await ethers.getContractFactory("LendingPoolLens");
   const lendingPoolLens = await LendingPoolLens.deploy(
-    await lendingPool.getAddress()
+    await lendingPool.getAddress(),
   );
   await lendingPoolLens.waitForDeployment();
   console.log("   ✅ LendingPoolLens:", await lendingPoolLens.getAddress());
@@ -82,12 +91,14 @@ async function main() {
   const CoSigningManager = await ethers.getContractFactory("CoSigningManager");
   const coSigningManager = await CoSigningManager.deploy(
     await reputationManager.getAddress(),
-    await lendingPool.getAddress()
+    await lendingPool.getAddress(),
   );
   await coSigningManager.waitForDeployment();
   console.log("   ✅ CoSigningManager:", await coSigningManager.getAddress());
 
+  // ─────────────────────────────────────────────────────────────
   // 4. Configure contracts
+  // ─────────────────────────────────────────────────────────────
   console.log("\n⚙️  Configuring Contracts...");
 
   // Setup price feeds
@@ -95,42 +106,48 @@ async function main() {
     await priceOracle.setPriceFeed(
       await weth.getAddress(),
       await ethPriceFeed.getAddress(),
-      "WETH"
+      "WETH",
     )
   ).wait();
+
   await (
     await priceOracle.setPriceFeed(
       await usdc.getAddress(),
       await usdcPriceFeed.getAddress(),
-      "USDC"
+      "USDC",
     )
   ).wait();
+
   await (
     await priceOracle.setPriceFeed(
       await wbtc.getAddress(),
       await btcPriceFeed.getAddress(),
-      "WBTC"
+      "WBTC",
     )
   ).wait();
+
   console.log("   ✅ Price feeds configured");
 
   // Grant roles
   const LENDING_POOL_ROLE_CM = await collateralManager.LENDING_POOL_ROLE();
   await collateralManager.grantRole(
     LENDING_POOL_ROLE_CM,
-    await lendingPool.getAddress()
+    await lendingPool.getAddress(),
   );
 
   const LENDING_POOL_ROLE_RM = await reputationManager.LENDING_POOL_ROLE();
   const COSIGNING_ROLE = await reputationManager.COSIGNING_ROLE();
+
   await reputationManager.grantRole(
     LENDING_POOL_ROLE_RM,
-    await lendingPool.getAddress()
+    await lendingPool.getAddress(),
   );
+
   await reputationManager.grantRole(
     COSIGNING_ROLE,
-    await coSigningManager.getAddress()
+    await coSigningManager.getAddress(),
   );
+
   console.log("   ✅ Roles configured");
 
   // Add collateral tokens
@@ -138,59 +155,61 @@ async function main() {
     await weth.getAddress(),
     18,
     ethers.parseEther("1000"),
-    500
+    500,
   );
+
   await collateralManager.addSupportedToken(
     await usdc.getAddress(),
     6,
     10000000 * 10 ** 6,
-    300
+    300,
   );
+
   await collateralManager.addSupportedToken(
     await wbtc.getAddress(),
     8,
     100 * 10 ** 8,
-    500
+    500,
   );
+
   console.log("   ✅ Collateral tokens configured");
 
-  // 5. Mint tokens to test users
-  console.log("\n💰 Minting Test Tokens...");
-  await weth.mint(user1.address, ethers.parseEther("100"));
-  await usdc.mint(user1.address, 100000 * 10 ** 6);
-  await wbtc.mint(user1.address, 10 * 10 ** 8);
+  // ─────────────────────────────────────────────────────────────
+  // 5. Mint tokens to first 10 accounts
+  // ─────────────────────────────────────────────────────────────
+  console.log("\n💰 Minting Test Tokens to first 10 accounts...");
 
-  await weth.mint(user2.address, ethers.parseEther("100"));
-  await usdc.mint(user2.address, 100000 * 10 ** 6);
-  console.log("   ✅ Tokens minted to test users");
+  const recipients = signers.slice(0, 10); // accounts 0 → 9
 
+  for (let i = 0; i < recipients.length; i++) {
+    const user = recipients[i];
+
+    await weth.mint(user.address, ethers.parseEther("100"));
+    await usdc.mint(user.address, 100_000 * 10 ** 6);
+    await wbtc.mint(user.address, 10 * 10 ** 8);
+
+    console.log(`   ✅ Minted tokens to account ${i}: ${user.address}`);
+  }
+
+  // ─────────────────────────────────────────────────────────────
   // 6. Initialize reputations
+  // ─────────────────────────────────────────────────────────────
   console.log("\n👤 Initializing Reputations...");
-  await reputationManager.initializeReputation(user1.address);
-  await reputationManager.initializeReputation(user2.address);
+
+  for (let i = 0; i < recipients.length; i++) {
+    await reputationManager.initializeReputation(recipients[i].address);
+  }
+
   console.log("   ✅ Reputations initialized");
 
-  console.log("\n✅ LOCAL DEPLOYMENT COMPLETE!\n");
-  console.log("=".repeat(70));
-  console.log("\n📋 Contract Addresses:\n");
-  console.log("Mock Tokens:");
-  console.log(`   WETH: ${await weth.getAddress()}`);
-  console.log(`   USDC: ${await usdc.getAddress()}`);
-  console.log(`   WBTC: ${await wbtc.getAddress()}`);
-  console.log("\nMain Contracts:");
-  console.log(`   ReputationManager: ${await reputationManager.getAddress()}`);
-  console.log(`   PriceOracle: ${await priceOracle.getAddress()}`);
-  console.log(`   CollateralManager: ${await collateralManager.getAddress()}`);
-  console.log(`   LendingPool: ${await lendingPool.getAddress()}`);
-  console.log(`   LendingPoolLens: ${await lendingPoolLens.getAddress()}`);
-  console.log(`   CoSigningManager: ${await coSigningManager.getAddress()}`);
-  console.log("\n" + "=".repeat(70));
-
-  // ✅ Test that LendingPoolLens works
+  // ─────────────────────────────────────────────────────────────
+  // 7. Test LendingPoolLens
+  // ─────────────────────────────────────────────────────────────
   console.log("\n🧪 Testing LendingPoolLens...");
+
   try {
     const stats = await lendingPoolLens.getPlatformStats();
-    console.log("   ✅ Platform Stats Test:");
+    console.log("   ✅ Platform Stats:");
     console.log(`      Total Loans: ${stats[0]}`);
     console.log(`      Total Offers: ${stats[1]}`);
     console.log(`      Active Lender Offers: ${stats[2]}`);
@@ -199,12 +218,10 @@ async function main() {
   } catch (error) {
     console.log("   ❌ LendingPoolLens test failed:", error.message);
   }
-  console.log("\n" + "=".repeat(70));
 
-  // ✅ Save deployment info for backend
-  const fs = require("fs");
-  const path = require("path");
-
+  // ─────────────────────────────────────────────────────────────
+  // 8. Save deployment info
+  // ─────────────────────────────────────────────────────────────
   const deploymentInfo = {
     network: "localhost",
     chainId: "31337",
@@ -233,24 +250,28 @@ async function main() {
   const filename = `localhost-${Date.now()}.json`;
   fs.writeFileSync(
     path.join(deploymentsDir, filename),
-    JSON.stringify(deploymentInfo, null, 2)
+    JSON.stringify(deploymentInfo, null, 2),
   );
 
-  console.log(`\n💾 Deployment info saved to: deployments/${filename}\n`);
+  console.log(`\n💾 Deployment info saved to deployments/${filename}`);
 
-  // ✅ Print .env format
-  console.log("\n📝 Update your frontend/.env with these addresses:\n");
+  // ─────────────────────────────────────────────────────────────
+  // 9. Print frontend env vars
+  // ─────────────────────────────────────────────────────────────
+  console.log("\n📝 Update your frontend/.env with:\n");
   console.log(
-    `VITE_REPUTATION_MANAGER=${await reputationManager.getAddress()}`
+    `VITE_REPUTATION_MANAGER=${await reputationManager.getAddress()}`,
   );
   console.log(`VITE_PRICE_ORACLE=${await priceOracle.getAddress()}`);
   console.log(
-    `VITE_COLLATERAL_MANAGER=${await collateralManager.getAddress()}`
+    `VITE_COLLATERAL_MANAGER=${await collateralManager.getAddress()}`,
   );
   console.log(`VITE_LENDING_POOL=${await lendingPool.getAddress()}`);
   console.log(`VITE_LENDING_POOL_LENS=${await lendingPoolLens.getAddress()}`);
   console.log(`VITE_COSIGNING_MANAGER=${await coSigningManager.getAddress()}`);
   console.log("\n" + "=".repeat(70) + "\n");
+
+  console.log("✅ LOCAL DEPLOYMENT COMPLETE!");
 }
 
 main()
