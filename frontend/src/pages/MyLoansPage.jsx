@@ -11,7 +11,8 @@ import {
   Modal,
   Input,
   Alert,
-  AddressDisplay
+  AddressDisplay,
+  CollateralWithdrawButton
 } from '../components';
 import { formatCurrency, formatTimeAgo, formatDate } from '../utils/formatters';
 import { LOAN_STATUS_LABELS } from '../utils/constants';
@@ -124,6 +125,7 @@ const MyLoansPage = () => {
               loan={loan}
               currentAccount={account}
               onRepay={handleRepay}
+              onWithdrawSuccess={refetch}
             />
           ))}
         </div>
@@ -152,7 +154,7 @@ const MyLoansPage = () => {
   );
 };
 
-const LoanCard = ({ loan, currentAccount, onRepay }) => {
+const LoanCard = ({ loan, currentAccount, onRepay, onWithdrawSuccess }) => {
   const isBorrower = loan.borrower.toLowerCase() === currentAccount?.toLowerCase();
   const isOverdue = loan.status === 'ACTIVE' && loan.isOverdue;
   
@@ -161,7 +163,6 @@ const LoanCard = ({ loan, currentAccount, onRepay }) => {
     if (status === 'ACTIVE' && isOverdue) {
       return <Badge variant="danger">⚠️ Overdue</Badge>;
     }
-    
     const variants = {
       'PENDING': 'warning',
       'ACTIVE': 'info',
@@ -169,7 +170,12 @@ const LoanCard = ({ loan, currentAccount, onRepay }) => {
       'DEFAULTED': 'danger',
       'CANCELLED': 'default'
     };
-    
+
+    console.log('Withdraw check:', {
+  status: loan.status,
+  collateralDepositId: loan.collateralDepositId,
+  isBorrower
+});
     return <Badge variant={variants[status] || 'default'}>{status}</Badge>;
   };
 
@@ -177,7 +183,7 @@ const LoanCard = ({ loan, currentAccount, onRepay }) => {
 
   return (
     <Card hover>
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
         <div className="flex-1 space-y-3">
           <div className="flex items-center gap-3 flex-wrap">
             <h3 className="text-lg font-semibold">Loan #{loan.loanId}</h3>
@@ -238,19 +244,31 @@ const LoanCard = ({ loan, currentAccount, onRepay }) => {
           )}
         </div>
 
-        {needsRepayment && (
-          <div className="flex flex-col gap-2 lg:ml-4">
-            <Button 
-              variant={isOverdue ? 'danger' : 'primary'}
-              onClick={() => onRepay(loan)}
-            >
-              {isOverdue ? '⚠️ Repay Now (Overdue)' : '💰 Make Repayment'}
-            </Button>
-            <p className="text-xs text-gray-500 text-center">
-              Remaining: {loan.remainingAmount} ETH
-            </p>
-          </div>
-        )}
+        {/* Right-hand action column */}
+        <div className="flex flex-col gap-3 lg:ml-4 lg:min-w-[180px]">
+          {needsRepayment && (
+            <div className="flex flex-col gap-2">
+              <Button 
+                variant={isOverdue ? 'danger' : 'primary'}
+                onClick={() => onRepay(loan)}
+              >
+                {isOverdue ? '⚠️ Repay Now (Overdue)' : '💰 Make Repayment'}
+              </Button>
+              <p className="text-xs text-gray-500 text-center">
+                Remaining: {loan.remainingAmount} ETH
+              </p>
+            </div>
+          )}
+
+          {/* CollateralWithdrawButton self-hides when not relevant (status !== REPAID,
+              no depositId, or already withdrawn) — no extra guard needed here */}
+          {isBorrower && (
+            <CollateralWithdrawButton
+              loan={loan}
+              onSuccess={onWithdrawSuccess}
+            />
+          )}
+        </div>
       </div>
     </Card>
   );
@@ -267,6 +285,7 @@ const RepayLoanModal = ({ isOpen, onClose, loan, onSuccess }) => {
   const remainingAmount = parseFloat(loan.remainingAmount || loan.amountDue);
   const maxRepayment = remainingAmount.toFixed(4);
   const isOverdue = loan.isOverdue;
+  const hasCollateral = loan.collateralDepositId && String(loan.collateralDepositId) !== '0';
 
   const handleRepay = async (e) => {
     e.preventDefault();
@@ -285,13 +304,8 @@ const RepayLoanModal = ({ isOpen, onClose, loan, onSuccess }) => {
       const repaymentAmount = ethers.parseEther(amount);
       const tokenAddress = loan.terms.tokenAddress;
 
-      console.log('💰 Repaying loan:', {
-        loanId: loan.loanId,
-        amount: amount,
-        tokenAddress: tokenAddress
-      });
+      console.log('💰 Repaying loan:', { loanId: loan.loanId, amount, tokenAddress });
 
-      // Step 1: Approve token spending
       console.log('1️⃣ Approving token spending...');
       await approveToken(
         tokenAddress,
@@ -300,14 +314,24 @@ const RepayLoanModal = ({ isOpen, onClose, loan, onSuccess }) => {
       );
       console.log('   ✅ Token approved');
 
-      // Step 2: Repay the loan
       console.log('2️⃣ Repaying loan...');
       const tx = await contracts.lendingPool.repayLoan(loan.loanId, repaymentAmount);
       console.log('⏳ Waiting for confirmation...', tx.hash);
       const receipt = await tx.wait();
       console.log('✅ Loan repayment successful!', receipt);
 
-      alert(`Successfully repaid ${amount} ETH!`);
+      const isFullRepayment = parseFloat(amount) >= remainingAmount - 0.0001;
+
+      if (isFullRepayment && hasCollateral) {
+        alert(
+          `✅ Loan fully repaid!\n\n` +
+          `Your collateral has been unlocked. ` +
+          `Click "Withdraw Collateral" on this loan card to reclaim it.`
+        );
+      } else {
+        alert(`Successfully repaid ${amount} ETH!`);
+      }
+
       onSuccess();
       setLoading(false);
     } catch (err) {
@@ -376,46 +400,19 @@ const RepayLoanModal = ({ isOpen, onClose, loan, onSuccess }) => {
         />
 
         <div className="flex gap-2">
-          <Button 
-            type="button"
-            variant="outline" 
-            onClick={() => setAmount((remainingAmount * 0.25).toFixed(4))}
-            className="flex-1"
-          >
-            25%
-          </Button>
-          <Button 
-            type="button"
-            variant="outline" 
-            onClick={() => setAmount((remainingAmount * 0.5).toFixed(4))}
-            className="flex-1"
-          >
-            50%
-          </Button>
-          <Button 
-            type="button"
-            variant="outline" 
-            onClick={() => setAmount((remainingAmount * 0.75).toFixed(4))}
-            className="flex-1"
-          >
-            75%
-          </Button>
-          <Button 
-            type="button"
-            variant="outline" 
-            onClick={() => setAmount(maxRepayment)}
-            className="flex-1"
-          >
-            100%
-          </Button>
+          <Button type="button" variant="outline" onClick={() => setAmount((remainingAmount * 0.25).toFixed(4))} className="flex-1">25%</Button>
+          <Button type="button" variant="outline" onClick={() => setAmount((remainingAmount * 0.5).toFixed(4))} className="flex-1">50%</Button>
+          <Button type="button" variant="outline" onClick={() => setAmount((remainingAmount * 0.75).toFixed(4))} className="flex-1">75%</Button>
+          <Button type="button" variant="outline" onClick={() => setAmount(maxRepayment)} className="flex-1">100%</Button>
         </div>
 
         <Alert variant="info">
-          💡 You will need to approve the token spending before repaying. This requires 2 transactions:
-          <ol className="list-decimal ml-5 mt-2 text-sm">
-            <li>Approve token spending</li>
-            <li>Repay the loan</li>
-          </ol>
+          💡 Repaying requires 2 transactions: approve token spending, then repay.
+          {hasCollateral && (
+            <p className="mt-2 text-sm font-medium text-blue-800">
+              🔒 After <strong>full</strong> repayment, a "Withdraw Collateral" button will appear on this loan card.
+            </p>
+          )}
         </Alert>
 
         <div className="flex gap-4 pt-4">

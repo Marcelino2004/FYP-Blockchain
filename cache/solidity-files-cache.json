@@ -212,17 +212,18 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\CollateralManager.sol": {
-      "lastModificationDate": 1765529304591,
+      "lastModificationDate": 1767520218677,
       "contentHash": "a49dbe25413a2a9239de0a0bbb577efa",
       "sourceName": "contracts/interfaces/CollateralManager.sol",
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "viaIR": false,
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -267,11 +268,12 @@
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "viaIR": false,
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -309,17 +311,18 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\ERC20.sol": {
-      "lastModificationDate": 1750769525498,
+      "lastModificationDate": 1767520218679,
       "contentHash": "873ca3be83c46230f9e37bba3d36f910",
       "sourceName": "contracts/interfaces/ERC20.sol",
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "viaIR": false,
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -352,17 +355,18 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\LendingPool.sol": {
-      "lastModificationDate": 1767669156928,
-      "contentHash": "335951329db3545d148dd3a22640118a",
+      "lastModificationDate": 1771075594952,
+      "contentHash": "3cbd6f0a5bf3c2b07a71dd0724ec33dd",
       "sourceName": "contracts/interfaces/LendingPool.sol",
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "viaIR": false,
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -404,17 +408,18 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\PriceOracle.sol": {
-      "lastModificationDate": 1761035011231,
+      "lastModificationDate": 1767520218689,
       "contentHash": "c770c4bf6ad321832592828817a59f04",
       "sourceName": "contracts/interfaces/PriceOracle.sol",
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "viaIR": false,
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -450,17 +455,18 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\ReputationManager.sol": {
-      "lastModificationDate": 1765535360393,
+      "lastModificationDate": 1767520218691,
       "contentHash": "6f163e58cbbb2b057faa79663e2d5d94",
       "sourceName": "contracts/interfaces/ReputationManager.sol",
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "viaIR": false,
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -502,11 +508,12 @@
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "viaIR": false,
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -550,11 +557,12 @@
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "viaIR": false,
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -593,11 +601,12 @@
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "viaIR": false,
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -636,11 +645,12 @@
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "viaIR": false,
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -679,11 +689,12 @@
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "viaIR": false,
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -724,11 +735,12 @@
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "viaIR": false,
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -767,11 +779,12 @@
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "viaIR": false,
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -803,48 +816,6 @@
         "IERC165"
       ]
     },
-    "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\iWeth.sol": {
-      "lastModificationDate": 1750774391789,
-      "contentHash": "6b25c4dd4189b500a65d0e77c19e8aec",
-      "sourceName": "contracts/interfaces/iWeth.sol",
-      "solcConfig": {
-        "version": "0.4.19",
-        "settings": {
-          "optimizer": {
-            "enabled": false,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.4.19"
-      ],
-      "artifacts": [
-        "iWeth"
-      ]
-    },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\node_modules\\@openzeppelin\\contracts\\access\\Ownable.sol": {
       "lastModificationDate": 1749436150439,
       "contentHash": "e436cea06129be2c73cda4b1acc848b5",
@@ -852,11 +823,12 @@
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "viaIR": false,
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -897,11 +869,12 @@
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "viaIR": false,
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -940,11 +913,12 @@
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "viaIR": false,
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -983,11 +957,12 @@
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "viaIR": false,
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -1030,11 +1005,12 @@
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "viaIR": false,
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -1073,11 +1049,12 @@
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "viaIR": false,
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -1116,11 +1093,12 @@
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "viaIR": false,
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -1161,11 +1139,12 @@
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "viaIR": false,
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -1208,11 +1187,12 @@
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "viaIR": false,
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -1254,11 +1234,12 @@
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "viaIR": false,
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -1297,11 +1278,12 @@
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "viaIR": false,
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -1336,17 +1318,18 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\mocks\\MockV3Aggregator.sol": {
-      "lastModificationDate": 1766050700791,
+      "lastModificationDate": 1767520218697,
       "contentHash": "2f29aef810fa349054157bf09de89332",
       "sourceName": "contracts/mocks/MockV3Aggregator.sol",
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "viaIR": false,
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -1379,17 +1362,18 @@
       "artifacts": []
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\mocks\\MockERC20.sol": {
-      "lastModificationDate": 1766050446137,
+      "lastModificationDate": 1767520218695,
       "contentHash": "6956dcf5b24024c8b87b70a0870acb91",
       "sourceName": "contracts/mocks/MockERC20.sol",
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "viaIR": false,
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -1424,17 +1408,18 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\LoanLogic.sol": {
-      "lastModificationDate": 1766052018477,
+      "lastModificationDate": 1767520218685,
       "contentHash": "8f557d940cf45f1bdf81389dc1082516",
       "sourceName": "contracts/interfaces/LoanLogic.sol",
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "viaIR": false,
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -1467,17 +1452,18 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\ActiveOfferLib.sol": {
-      "lastModificationDate": 1766052190626,
+      "lastModificationDate": 1767520218670,
       "contentHash": "412cbfda5fe6a81ff26832f1188f81c8",
       "sourceName": "contracts/interfaces/ActiveOfferLib.sol",
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "viaIR": false,
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -1510,17 +1496,18 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\LendingPoolLens.sol": {
-      "lastModificationDate": 1768115196450,
+      "lastModificationDate": 1770011386268,
       "contentHash": "e30fa94128565a1f36d391c751093eea",
       "sourceName": "contracts/interfaces/LendingPoolLens.sol",
       "solcConfig": {
         "version": "0.8.20",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "viaIR": false,
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [

@@ -288,7 +288,6 @@ contract LendingPool is AccessControl, ReentrancyGuard {
         uint256 collateralDepositId
     ) external nonReentrant returns (uint256 loanId) {
         LoanOffer storage offer = loanOffers[offerId];
-
         if (offer.creator == address(0)) revert LendingPool__OfferNotFound();
         if (!offer.isActive) revert LendingPool__OfferNotActive();
 
