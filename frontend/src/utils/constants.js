@@ -209,6 +209,7 @@ export const COLLATERAL_MANAGER_ABI = [
   "function getTokenInfo(address token) view returns (tuple(bool isSupported, uint256 maxDepositAmount, uint256 liquidationPenalty, uint256 totalDeposited))",
   "function isCollateralSufficient(uint256 loanId, uint256 loanAmount, uint256 requiredRatio) view returns (bool)",
   "function calculateHealthFactor(uint256 loanId, uint256 loanAmount) view returns (uint256)",
+  "function nextDepositId() view returns (uint256)",
 ];
 
 // CoSigningManager ABI

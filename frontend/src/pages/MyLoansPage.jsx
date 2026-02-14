@@ -125,7 +125,7 @@ const MyLoansPage = () => {
               loan={loan}
               currentAccount={account}
               onRepay={handleRepay}
-              onWithdrawSuccess={refetch}
+              onWithdrawSuccess={() => setTimeout(refetch, 2000)}
             />
           ))}
         </div>
@@ -170,12 +170,6 @@ const LoanCard = ({ loan, currentAccount, onRepay, onWithdrawSuccess }) => {
       'DEFAULTED': 'danger',
       'CANCELLED': 'default'
     };
-
-    console.log('Withdraw check:', {
-  status: loan.status,
-  collateralDepositId: loan.collateralDepositId,
-  isBorrower
-});
     return <Badge variant={variants[status] || 'default'}>{status}</Badge>;
   };
 

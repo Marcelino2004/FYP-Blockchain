@@ -511,10 +511,18 @@ const CreateOfferModal = ({ isOpen, onClose, onSuccess }) => {
         await approveTx.wait();
         console.log('   ✅ Collateral approved');
         
-        // Step 2: Deposit collateral
-        console.log('   🔒 Depositing collateral...');
+        // Step 2: Deposit collateral.
+        // CRITICAL: isCollateralSufficient(depositId, ...) in the contract treats depositId
+        // as a loanId and looks up loanToDepositIds[depositId]. For this lookup to find the
+        // deposit, the deposit must have been created with loanId = its own depositId.
+        // We achieve this by reading nextDepositId before depositing and using it as loanId.
+        console.log('   Reading nextDepositId to self-reference deposit...');
+        const predictedDepositId = await contracts.collateralManager.nextDepositId();
+        console.log('   Predicted depositId:', predictedDepositId.toString());
+
+        console.log('   Depositing collateral...');
         const depositTx = await contracts.collateralManager.depositCollateral(
-          0, // loanId = 0 for now (will be linked when loan is matched)
+          predictedDepositId, // loanId = own depositId so isCollateralSufficient can find it
           collateralTokenAddress,
           collateralAmount
         );
@@ -968,46 +976,67 @@ const AcceptOfferModal = ({ isOpen, onClose, offer, onSuccess }) => {
         const hasCollateral = rawCollateralAmount && rawCollateralAmount !== '0' && parseFloat(String(rawCollateralAmount).split(' ')[0]) > 0;
 
         if (hasCollateral) {
-          console.log('🔍 Finding borrower\'s collateral deposit...');
+          console.log('Finding borrower collateral deposit...');
           console.log('   Borrower:', offer.creator);
-          console.log('   Expected collateral:', offer.terms.collateralAmount, getTokenSymbol(offer.terms.collateralToken));
+          console.log('   Offer collateralAmount (backend-formatted):', offer.terms.collateralAmount);
+          console.log('   Offer collateralToken:', offer.terms.collateralToken);
 
           try {
-            // Query borrower's deposits from the CollateralManager contract
+            const collateralTokenSymbol = getTokenSymbol(offer.terms.collateralToken);
+
+            // ─────────────────────────────────────────────────────────────────
+            // KEY FIX: The backend formats ALL token amounts with formatEther
+            // (18 decimals) regardless of actual token decimals.
+            // e.g. 22410 raw USDC (6 dec) -> "0.00000002241" (divided by 10^18)
+            //
+            // To recover the raw on-chain amount we REVERSE that with parseEther.
+            // We must NOT use parseTokenAmount here — it applies the token's own
+            // decimals (6 for USDC) which causes the tiny number to round to 0.
+            // ─────────────────────────────────────────────────────────────────
+            const collateralAmountStr = String(offer.terms.collateralAmount).trim().split(' ')[0];
+            const expectedRawAmount = ethers.parseEther(collateralAmountStr);
+            console.log('   Expected raw amount:', expectedRawAmount.toString());
+
             const deposits = await contracts.collateralManager.getUserDeposits(offer.creator);
             console.log('   Found', deposits.length, 'total deposits for borrower');
+            deposits.forEach((d, i) => {
+              const decimals = TOKEN_INFO[collateralTokenSymbol]?.decimals || 18;
+              console.log(`   deposit[${i}]: id=${d.depositId} amount=${d.amount} (${ethers.formatUnits(d.amount, decimals)} ${collateralTokenSymbol}) locked=${d.isLocked} token=${d.tokenAddress}`);
+            });
 
-            // Parse expected collateral amount (strip symbol suffix if present)
-            const collateralTokenSymbol = getTokenSymbol(offer.terms.collateralToken);
-            const collateralAmountStr = String(offer.terms.collateralAmount).trim().split(' ')[0];
-            const expectedAmount = parseTokenAmount(collateralAmountStr, collateralTokenSymbol);
-
-            // Find the matching unlocked deposit (matching token and sufficient amount)
-            // Sort by depositId descending to prefer most recent
+            // Sort descending by depositId — prefer most recent deposit
             const sortedDeposits = [...deposits].sort((a, b) => Number(b.depositId) - Number(a.depositId));
 
+            // Compare raw on-chain BigInt amounts — no decimal conversion
             const matchingDeposit = sortedDeposits.find(d =>
               d.tokenAddress.toLowerCase() === offer.terms.collateralToken.toLowerCase() &&
               !d.isLocked &&
-              BigInt(d.amount) >= BigInt(expectedAmount)
+              BigInt(d.amount) >= BigInt(expectedRawAmount)
             );
 
             if (matchingDeposit) {
               borrowerDepositId = Number(matchingDeposit.depositId);
-              console.log('   ✅ Found borrower\'s deposit ID:', borrowerDepositId);
-              console.log('      Amount:', ethers.formatUnits(matchingDeposit.amount, TOKEN_INFO[collateralTokenSymbol]?.decimals || 18), collateralTokenSymbol);
+              const decimals = TOKEN_INFO[collateralTokenSymbol]?.decimals || 18;
+              console.log('   Found borrower deposit ID:', borrowerDepositId);
+              console.log('      Amount:', ethers.formatUnits(matchingDeposit.amount, decimals), collateralTokenSymbol);
             } else {
+              console.warn('   No matching deposit found. Deposit check details:');
+              sortedDeposits.forEach(d => {
+                const tokenMatch = d.tokenAddress.toLowerCase() === offer.terms.collateralToken.toLowerCase();
+                const amountMatch = BigInt(d.amount) >= BigInt(expectedRawAmount);
+                console.warn(`      id=${d.depositId} tokenMatch=${tokenMatch} amountOk=${amountMatch} locked=${d.isLocked}`);
+              });
               throw new Error(
                 `Borrower has not deposited sufficient collateral. ` +
                 `Required: ${offer.terms.collateralAmount} ${collateralTokenSymbol}. ` +
-                `The borrower may need to re-create their request after depositing collateral.`
+                `The borrower may need to re-deposit collateral and recreate their request.`
               );
             }
           } catch (depositError) {
-            console.error('   ❌ Error finding collateral deposit:', depositError);
+            console.error('   Error finding collateral deposit:', depositError);
             throw new Error(
               depositError.message ||
-              'Could not verify borrower\'s collateral deposit. Please try again.'
+              'Could not verify borrower collateral deposit. Please try again.'
             );
           }
         }
