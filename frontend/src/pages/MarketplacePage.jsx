@@ -1070,17 +1070,25 @@ const AcceptOfferModal = ({ isOpen, onClose, offer, onSuccess }) => {
       onSuccess();
       setLoading(false);
     } catch (err) {
-      console.error('❌ Error accepting offer:', err);
-      
+      console.error('Error accepting offer:', err);
+
+      // Match known custom error selectors (bytes4 of the error signature)
+      // These come back in err.data when ethers cannot decode the revert reason
+      const CUSTOM_ERRORS = {
+        '0xc0b84ad1': 'Your reputation score does not meet the minimum requirement for this offer.',
+        '0x4813f38b': 'Insufficient collateral — please ensure you have deposited enough collateral.',
+        '0x8c7f6fb3': 'This offer is no longer active.',
+      };
+
+      const selector = err.data ? String(err.data).slice(0, 10).toLowerCase() : null;
       let errorMessage = 'Failed to accept offer';
-      if (err.message.includes('insufficient')) {
-        errorMessage = 'Insufficient balance or allowance';
-      } else if (err.message.includes('reputation')) {
-        errorMessage = 'Your reputation does not meet the minimum requirement';
-      } else if (err.message.includes('collateral')) {
-        errorMessage = 'Invalid or insufficient collateral';
-      } else if (err.message.includes('user rejected')) {
-        errorMessage = 'Transaction rejected by user';
+
+      if (selector && CUSTOM_ERRORS[selector]) {
+        errorMessage = CUSTOM_ERRORS[selector];
+      } else if (err.message.includes('user rejected') || err.message.includes('User denied')) {
+        errorMessage = 'Transaction rejected by user.';
+      } else if (err.message.includes('insufficient funds')) {
+        errorMessage = 'Insufficient funds to cover gas fees.';
       } else if (err.reason) {
         errorMessage = err.reason;
       } else if (err.message) {
