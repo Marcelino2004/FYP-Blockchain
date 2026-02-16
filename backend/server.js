@@ -14,6 +14,8 @@ const collateralRoutes = require("./routes/collateral.routes");
 const coSigningRoutes = require("./routes/cosigning.routes");
 const pricesRoutes = require("./routes/prices.routes");
 const statsRoutes = require("./routes/stats.routes");
+const verificationRoutes = require("./routes/verification.routes");
+const verificationService = require("./services/verification.service");
 
 const app = express();
 
@@ -39,6 +41,7 @@ app.use("/api/collateral", collateralRoutes);
 app.use("/api/cosigning", coSigningRoutes);
 app.use("/api/prices", pricesRoutes);
 app.use("/api/stats", statsRoutes);
+app.use("/api/verification", verificationRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -59,33 +62,32 @@ async function startServer() {
     await blockchainService.initialize();
     console.log("✅ Blockchain connected\n");
 
+    // Check VERIFIER_ROLE for verification feature
+    await verificationService.checkVerifierRole();
+
     // Start HTTP server
     app.listen(config.server.port, config.server.host, () => {
       console.log("=".repeat(70));
       console.log(`\n✅ Backend server running!`);
       console.log(
-        `📡 API available at http://${config.server.host}:${config.server.port}`
+        `📡 API available at http://${config.server.host}:${config.server.port}`,
       );
       console.log(
-        `💚 Health check: http://localhost:${config.server.port}/health`
+        `💚 Health check: http://localhost:${config.server.port}/health`,
       );
       console.log(`🌍 Environment: ${config.server.env}`);
       console.log(`⛓️  Network: ${config.blockchain.network}`);
       console.log(`\n📚 API Endpoints:`);
       console.log(`   GET  /api/reputation/:address`);
-      console.log(`   GET  /api/loans/offers/lenders`);
-      console.log(`   GET  /api/loans/offers/borrowers`);
-      console.log(`   GET  /api/loans/user/:address`);
-      console.log(`   GET  /api/loans/:loanId`);
-      console.log(`   GET  /api/collateral/tokens`);
-      console.log(`   GET  /api/collateral/user/:address`);
-      console.log(`   GET  /api/collateral/loan/:loanId/value`);
-      console.log(`   GET  /api/cosigning/requests`);
-      console.log(`   GET  /api/cosigning/user/:address`);
+      console.log(`   GET  /api/loans`);
+      console.log(`   GET  /api/collateral`);
+      console.log(`   GET  /api/cosigning`);
       console.log(`   GET  /api/prices`);
-      console.log(`   GET  /api/prices/:tokenAddress`);
       console.log(`   GET  /api/stats/platform`);
-      console.log("\n" + "=".repeat(70) + "\n");
+      console.log(`   GET  /api/verification/status/:address`);
+      console.log(`   POST /api/verification/send-otp`);
+      console.log(`   POST /api/verification/verify-otp`);
+      console.log("\n" + "=".repeat(70));
     });
   } catch (error) {
     console.error("❌ Failed to start server:", error);
@@ -93,16 +95,6 @@ async function startServer() {
   }
 }
 
-// Graceful shutdown
-process.on("SIGTERM", () => {
-  console.log("\n👋 SIGTERM received, shutting down gracefully");
-  process.exit(0);
-});
-
-process.on("SIGINT", () => {
-  console.log("\n👋 SIGINT received, shutting down gracefully");
-  process.exit(0);
-});
-
-// Start the server
 startServer();
+
+module.exports = app;

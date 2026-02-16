@@ -41,8 +41,8 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
     uint256 public constant MAX_COSIGN_BONUS = 100;
 
     // Off-chain verification bonuses
-    uint256 public constant EMAIL_VERIFICATION_BONUS = 30;
-    uint256 public constant PHONE_VERIFICATION_BONUS = 70;
+    uint256 public constant EMAIL_VERIFICATION_BONUS = 60;
+    uint256 public constant PHONE_VERIFICATION_BONUS = 140;
 
     // Repayment scoring
     uint256 public constant SUCCESSFUL_REPAYMENT_BASE = 20;

@@ -22,7 +22,9 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^5.2.1",
-    "nodemon": "^3.1.11"
+    "nodemon": "^3.1.11",
+    "resend": "^6.9.2",
+    "twilio": "^5.12.1"
   },
   "scripts": {
     "backend:dev": "nodemon backend/server.js",

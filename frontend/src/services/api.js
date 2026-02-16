@@ -38,6 +38,26 @@ class ApiService {
     return this.request(API_ENDPOINTS.reputation(address));
   }
 
+  // ============ Verification API ============
+
+  async getVerificationStatus(address) {
+    return this.request(`/api/verification/status/${address}`);
+  }
+
+  async sendVerificationOTP(address, type, contact) {
+    return this.request("/api/verification/send-otp", {
+      method: "POST",
+      body: JSON.stringify({ address, type, contact }),
+    });
+  }
+
+  async verifyOTP(address, type, otp) {
+    return this.request("/api/verification/verify-otp", {
+      method: "POST",
+      body: JSON.stringify({ address, type, otp }),
+    });
+  }
+
   // ============ Loans API ============
 
   async getLenderOffers() {

@@ -455,8 +455,8 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\ReputationManager.sol": {
-      "lastModificationDate": 1767520218691,
-      "contentHash": "6f163e58cbbb2b057faa79663e2d5d94",
+      "lastModificationDate": 1771231374127,
+      "contentHash": "ea04d9b89ffc50b0f18f3335b52d59db",
       "sourceName": "contracts/interfaces/ReputationManager.sol",
       "solcConfig": {
         "version": "0.8.20",
