@@ -24,13 +24,17 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
     // Storage
     mapping(uint256 => CoSigningRequest) public coSigningRequests;
     mapping(uint256 => CoSigningRecord) public coSigningRecords;
-    mapping(uint256 => uint256[]) public loanCoSigners; // loanId => recordIds[]
-    mapping(address => uint256[]) public userRequests; // borrower => requestIds[]
-    mapping(address => uint256[]) public userCoSignings; // coSigner => recordIds[]
+    mapping(uint256 => uint256[]) public loanCoSigners; // loanId      => recordIds[]
+    mapping(address => uint256[]) public userRequests; // borrower    => requestIds[]
+    mapping(address => uint256[]) public userCoSignings; // coSigner    => recordIds[]
+
+    // ← NEW: index accepted records by their originating loan offer so that
+    //   LendingPool.cancelLoanOffer can find and reverse them.
+    mapping(uint256 => uint256[]) public offerToRecords; // loanOfferId => recordIds[]
 
     // Co-signing limits
-    uint256 public constant MIN_COSIGNER_REPUTATION = 200;
-    uint256 public constant MAX_BONUS_PERCENTAGE = 50; // 50% of co-signer's reputation
+    uint256 public constant MIN_COSIGNER_REPUTATION = 50; //to be changed back to 200
+    uint256 public constant MAX_BONUS_PERCENTAGE = 50;
     uint256 public constant COOLDOWN_PERIOD = 30 days;
     uint256 public constant MAX_COSIGNERS_PER_LOAN = 3;
 
@@ -57,6 +61,7 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         bool isActive;
         bool loanCompleted;
         bool borrowerDefaulted;
+        bool wasCancelled;
     }
 
     // ============ Events ============
@@ -103,6 +108,13 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         uint256 rewardAmount
     );
 
+    // ← NEW
+    event CoSigningRecordCancelled(
+        uint256 indexed recordId,
+        address indexed coSigner,
+        address indexed borrower
+    );
+
     // ============ Errors ============
 
     error CoSigningManager__InvalidAddress();
@@ -116,6 +128,7 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
     error CoSigningManager__CannotCoSignSelf();
     error CoSigningManager__LoanNotFound();
     error CoSigningManager__InvalidBonus();
+    error CoSigningManager__RecordAlreadyLinked();
 
     // ============ Constructor ============
 
@@ -135,7 +148,7 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
     /**
      * @notice Create a co-signing request for a loan offer
      * @param loanOfferId The ID of the loan offer
-     * @param requestedBonus The reputation bonus requested
+     * @param requestedBonus Stored for display only — has no on-chain effect
      * @param message Optional message to potential co-signers
      * @return requestId The ID of the created request
      */
@@ -146,7 +159,6 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
     ) external nonReentrant returns (uint256 requestId) {
         if (requestedBonus == 0) revert CoSigningManager__InvalidBonus();
 
-        // Verify loan offer exists
         LendingPool.LoanOffer memory offer = lendingPool.getLoanOffer(
             loanOfferId
         );
@@ -179,7 +191,9 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
     }
 
     /**
-     * @notice Cancel a co-signing request
+     * @notice Cancel a co-signing REQUEST (before anyone has accepted it).
+     * @dev No reputation has been applied yet at this stage — no reversal needed.
+     *      Only the borrower who created the request can call this.
      * @param requestId The ID of the request to cancel
      */
     function cancelCoSigningRequest(uint256 requestId) external nonReentrant {
@@ -212,7 +226,6 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         if (msg.sender == request.borrower)
             revert CoSigningManager__CannotCoSignSelf();
 
-        // Check co-signer reputation
         uint256 coSignerReputation = reputationManager.getReputationScore(
             msg.sender
         );
@@ -220,7 +233,7 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
             revert CoSigningManager__InsufficientReputation();
         }
 
-        // Calculate actual bonus with diminishing returns
+        // Actual bonus determined by ReputationManager — requestedBonus is ignored here
         uint256 bonusProvided = reputationManager.addCoSigningBonus(
             request.borrower,
             msg.sender,
@@ -233,18 +246,23 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
             recordId: recordId,
             coSigner: msg.sender,
             borrower: request.borrower,
-            loanId: 0, // Will be set when loan is matched
+            loanId: 0, // linked to actual loan later via addCoSignerToLoan
             reputationStaked: coSignerReputation,
             bonusProvided: bonusProvided,
             coSignTimestamp: block.timestamp,
             isActive: true,
             loanCompleted: false,
-            borrowerDefaulted: false
+            borrowerDefaulted: false,
+            wasCancelled: false
         });
 
         userCoSignings[msg.sender].push(recordId);
 
-        // Deactivate request
+        // ← NEW: populate offerToRecords so LendingPool.cancelLoanOffer can
+        //   look up this record by offer ID and reverse the bonus if needed.
+        offerToRecords[request.loanOfferId].push(recordId);
+
+        // Deactivate the request — one co-signer per request
         request.isActive = false;
 
         emit CoSigningCompleted(
@@ -259,8 +277,59 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
     }
 
     /**
-     * @notice Add co-signer to an active loan (called by borrower or automatically)
-     * @param loanId The ID of the loan
+     * @notice Cancel an active co-signing RECORD when the underlying loan offer
+     *         is cancelled by the borrower before a lender accepts it.
+     * @dev Reverses the reputation bonus given to the borrower and decrements
+     *      the co-signer's active count. Called by LendingPool (which holds
+     *      DEFAULT_ADMIN_ROLE) or directly by the borrower.
+     * @param recordId The ID of the co-signing record to cancel
+     */
+    function cancelCoSigningRecord(uint256 recordId) external nonReentrant {
+        CoSigningRecord storage record = coSigningRecords[recordId];
+
+        if (record.coSigner == address(0))
+            revert CoSigningManager__RecordNotFound();
+        if (!record.isActive) revert CoSigningManager__RecordNotActive();
+
+        // Only the borrower or LendingPool (admin) can cancel
+        if (
+            msg.sender != record.borrower &&
+            !hasRole(DEFAULT_ADMIN_ROLE, msg.sender)
+        ) {
+            revert CoSigningManager__UnauthorizedCancellation();
+        }
+
+        record.isActive = false;
+        record.loanCompleted = true;
+        record.wasCancelled = true;
+
+        // Reverse the reputation bonus given to the borrower
+        if (record.bonusProvided > 0) {
+            reputationManager.removeCoSigningBonus(
+                record.borrower,
+                record.bonusProvided
+            );
+        }
+
+        // Decrement the co-signer's active co-sign count
+        reputationManager.decrementActiveCoSigns(record.coSigner);
+
+        emit CoSigningRecordCancelled(
+            recordId,
+            record.coSigner,
+            record.borrower
+        );
+        emit CoSigningReleased(
+            recordId,
+            record.coSigner,
+            record.borrower,
+            false
+        );
+    }
+
+    /**
+     * @notice Add co-signer to an active loan (called by borrower after loan is matched)
+     * @param loanId The ID of the matched loan
      * @param coSignRecordId The ID of the co-signing record
      */
     function addCoSignerToLoan(
@@ -273,19 +342,16 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
             revert CoSigningManager__RecordNotFound();
         if (!record.isActive) revert CoSigningManager__RecordNotActive();
 
-        // Verify loan exists and borrower matches
         LendingPool.Loan memory loan = lendingPool.getLoan(loanId);
         if (loan.borrower == address(0))
             revert CoSigningManager__LoanNotFound();
         if (loan.borrower != record.borrower)
             revert CoSigningManager__InvalidAddress();
 
-        // Check max co-signers limit
         if (loanCoSigners[loanId].length >= MAX_COSIGNERS_PER_LOAN) {
             revert CoSigningManager__MaxCoSignersReached();
         }
 
-        // Link record to loan
         record.loanId = loanId;
         loanCoSigners[loanId].push(coSignRecordId);
 
@@ -301,7 +367,7 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
     /**
      * @notice Release co-signing after loan completion
      * @param recordId The ID of the co-signing record
-     * @param successfulRepayment Whether the loan was repaid successfully
+     * @param successfulRepayment true = repaid, false = defaulted
      */
     function releaseCoSigning(
         uint256 recordId,
@@ -317,7 +383,6 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         record.loanCompleted = true;
 
         if (successfulRepayment) {
-            // Reward co-signer
             reputationManager.rewardCoSigner(record.coSigner, record.borrower);
 
             emit CoSignerRewarded(
@@ -327,10 +392,8 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
                 10
             );
         } else {
-            // Penalize co-signer
             record.borrowerDefaulted = true;
 
-            // Calculate penalty amount (done by ReputationManager)
             reputationManager.penalizeCoSigner(
                 record.coSigner,
                 record.borrower,
@@ -353,13 +416,48 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         );
     }
 
+    /**
+     * @notice Link a co-signing record to a matched loan (called by LendingPool)
+     * @param recordId The co-signing record ID
+     * @param loanId The matched loan ID
+     */
+    function linkRecordToLoan(
+        uint256 recordId,
+        uint256 loanId
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
+        CoSigningRecord storage record = coSigningRecords[recordId];
+
+        if (record.coSigner == address(0))
+            revert CoSigningManager__RecordNotFound();
+        if (!record.isActive) revert CoSigningManager__RecordNotActive();
+        if (record.loanId != 0) revert CoSigningManager__RecordAlreadyLinked(); // NEW ERROR
+
+        record.loanId = loanId;
+        loanCoSigners[loanId].push(recordId);
+
+        emit CoSigningCompleted(
+            recordId,
+            record.coSigner,
+            record.borrower,
+            loanId,
+            record.bonusProvided
+        );
+    }
+
     // ============ View Functions ============
 
     /**
-     * @notice Calculate co-signing bonus for a borrower-coSigner pair
-     * @param borrower The address of the borrower
-     * @param coSigner The address of the co-signer
-     * @return bonus The calculated bonus amount
+     * @notice Get all record IDs for a given loan offer.
+     * @dev Populated in acceptCoSigningRequest. Used by LendingPool.cancelLoanOffer.
+     */
+    function getRecordsByOffer(
+        uint256 loanOfferId
+    ) external view returns (uint256[] memory) {
+        return offerToRecords[loanOfferId];
+    }
+
+    /**
+     * @notice Calculate co-signing bonus preview for a borrower/coSigner pair
      */
     function calculateCoSigningBonus(
         address borrower,
@@ -368,31 +466,25 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         uint256 coSignerReputation = reputationManager.getReputationScore(
             coSigner
         );
-
-        // Base bonus: up to 50% of co-signer's reputation
         uint256 baseBonus = (coSignerReputation * MAX_BONUS_PERCENTAGE) / 100;
-
-        // Apply diminishing returns based on history
         uint256 coSignCount = reputationManager.getCoSignCount(
             coSigner,
             borrower
         );
 
         if (coSignCount == 0) {
-            return baseBonus; // 100%
+            return baseBonus;
         } else if (coSignCount == 1) {
-            return (baseBonus * 60) / 100; // 60%
+            return (baseBonus * 60) / 100;
         } else if (coSignCount == 2) {
-            return (baseBonus * 30) / 100; // 30%
+            return (baseBonus * 30) / 100;
         } else {
-            return (baseBonus * 10) / 100; // 10%
+            return (baseBonus * 10) / 100;
         }
     }
 
     /**
      * @notice Get co-signing record details
-     * @param recordId The ID of the co-signing record
-     * @return record The CoSigningRecord struct
      */
     function getCoSigningRecord(
         uint256 recordId
@@ -402,8 +494,6 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
 
     /**
      * @notice Get co-signing request details
-     * @param requestId The ID of the request
-     * @return request The CoSigningRequest struct
      */
     function getCoSigningRequest(
         uint256 requestId
@@ -412,9 +502,7 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
     }
 
     /**
-     * @notice Get all co-signing requests for a borrower
-     * @param borrower The address of the borrower
-     * @return requests Array of request IDs
+     * @notice Get all request IDs for a borrower
      */
     function getCoSigningRequests(
         address borrower
@@ -423,9 +511,7 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
     }
 
     /**
-     * @notice Get all active co-signing requests for a borrower
-     * @param borrower The address of the borrower
-     * @return activeRequests Array of CoSigningRequest structs
+     * @notice Get all active requests for a borrower as full structs
      */
     function getActiveCoSigningRequests(
         address borrower
@@ -433,14 +519,10 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         uint256[] memory requestIds = userRequests[borrower];
         uint256 activeCount = 0;
 
-        // Count active requests
         for (uint256 i = 0; i < requestIds.length; i++) {
-            if (coSigningRequests[requestIds[i]].isActive) {
-                activeCount++;
-            }
+            if (coSigningRequests[requestIds[i]].isActive) activeCount++;
         }
 
-        // Build array
         CoSigningRequest[] memory activeRequests = new CoSigningRequest[](
             activeCount
         );
@@ -448,8 +530,7 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
 
         for (uint256 i = 0; i < requestIds.length; i++) {
             if (coSigningRequests[requestIds[i]].isActive) {
-                activeRequests[index] = coSigningRequests[requestIds[i]];
-                index++;
+                activeRequests[index++] = coSigningRequests[requestIds[i]];
             }
         }
 
@@ -457,9 +538,7 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
     }
 
     /**
-     * @notice Get all co-signing records for a user (as co-signer)
-     * @param coSigner The address of the co-signer
-     * @return records Array of record IDs
+     * @notice Get all record IDs for a co-signer
      */
     function getUserCoSignings(
         address coSigner
@@ -468,9 +547,7 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
     }
 
     /**
-     * @notice Get all active co-signing records for a user
-     * @param user The address of the user
-     * @return activeRecords Array of CoSigningRecord structs
+     * @notice Get all active records for a user as full structs
      */
     function getActiveCoSignings(
         address user
@@ -478,14 +555,10 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         uint256[] memory recordIds = userCoSignings[user];
         uint256 activeCount = 0;
 
-        // Count active records
         for (uint256 i = 0; i < recordIds.length; i++) {
-            if (coSigningRecords[recordIds[i]].isActive) {
-                activeCount++;
-            }
+            if (coSigningRecords[recordIds[i]].isActive) activeCount++;
         }
 
-        // Build array
         CoSigningRecord[] memory activeRecords = new CoSigningRecord[](
             activeCount
         );
@@ -493,8 +566,7 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
 
         for (uint256 i = 0; i < recordIds.length; i++) {
             if (coSigningRecords[recordIds[i]].isActive) {
-                activeRecords[index] = coSigningRecords[recordIds[i]];
-                index++;
+                activeRecords[index++] = coSigningRecords[recordIds[i]];
             }
         }
 
@@ -502,58 +574,7 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
     }
 
     /**
-     * @notice Get all co-signers for a loan
-     * @param loanId The ID of the loan
-     * @return coSigners Array of co-signer addresses
-     */
-    function getLoanCoSigners(
-        uint256 loanId
-    ) external view returns (address[] memory) {
-        uint256[] memory recordIds = loanCoSigners[loanId];
-        address[] memory coSigners = new address[](recordIds.length);
-
-        for (uint256 i = 0; i < recordIds.length; i++) {
-            coSigners[i] = coSigningRecords[recordIds[i]].coSigner;
-        }
-
-        return coSigners;
-    }
-
-    /**
-     * @notice Get total reputation bonus provided to a borrower for a loan
-     * @param loanId The ID of the loan
-     * @return totalBonus The total bonus from all co-signers
-     */
-    function getLoanTotalBonus(
-        uint256 loanId
-    ) external view returns (uint256 totalBonus) {
-        uint256[] memory recordIds = loanCoSigners[loanId];
-
-        for (uint256 i = 0; i < recordIds.length; i++) {
-            totalBonus += coSigningRecords[recordIds[i]].bonusProvided;
-        }
-
-        return totalBonus;
-    }
-
-    /**
-     * @notice Check how many times a co-signer has co-signed for a borrower
-     * @param coSigner The address of the co-signer
-     * @param borrower The address of the borrower
-     * @return count The number of times co-signed
-     */
-    function getCoSignCount(
-        address coSigner,
-        address borrower
-    ) external view returns (uint256) {
-        return reputationManager.getCoSignCount(coSigner, borrower);
-    }
-
-    /**
-     * @notice Check if diminishing returns apply for a co-signer-borrower pair
-     * @param coSigner The address of the co-signer
-     * @param borrower The address of the borrower
-     * @return hasDR True if diminishing returns apply
+     * @notice Check if diminishing returns apply for a pair
      */
     function hasDiminishingReturns(
         address coSigner,
@@ -564,11 +585,6 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
 
     /**
      * @notice Get co-signing statistics for a user
-     * @param user The address of the user
-     * @return totalCoSignings Total number of co-signings
-     * @return activeCoSignings Current active co-signings
-     * @return successfulCoSignings Successful completions
-     * @return defaultedCoSignings Defaulted loans
      */
     function getCoSigningStats(
         address user
@@ -583,12 +599,10 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         )
     {
         uint256[] memory recordIds = userCoSignings[user];
-
         totalCoSignings = recordIds.length;
 
         for (uint256 i = 0; i < recordIds.length; i++) {
             CoSigningRecord memory record = coSigningRecords[recordIds[i]];
-
             if (record.isActive) {
                 activeCoSignings++;
             } else if (record.loanCompleted) {
@@ -609,8 +623,7 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
     }
 
     /**
-     * @notice Get all open co-signing requests (for discovery)
-     * @return openRequests Array of active CoSigningRequest structs
+     * @notice Get all open co-signing requests across all borrowers (for the discovery page)
      */
     function getAllOpenRequests()
         external
@@ -620,14 +633,10 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         uint256 totalRequests = nextRequestId - 1;
         uint256 openCount = 0;
 
-        // Count open requests
         for (uint256 i = 1; i <= totalRequests; i++) {
-            if (coSigningRequests[i].isActive) {
-                openCount++;
-            }
+            if (coSigningRequests[i].isActive) openCount++;
         }
 
-        // Build array
         CoSigningRequest[] memory openRequests = new CoSigningRequest[](
             openCount
         );
@@ -635,11 +644,21 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
 
         for (uint256 i = 1; i <= totalRequests; i++) {
             if (coSigningRequests[i].isActive) {
-                openRequests[index] = coSigningRequests[i];
-                index++;
+                openRequests[index++] = coSigningRequests[i];
             }
         }
 
         return openRequests;
+    }
+
+    /**
+     * @notice Get all co-signing record IDs for a loan
+     * @param loanId The loan ID
+     * @return Array of co-signing record IDs
+     */
+    function getLoanCoSigners(
+        uint256 loanId
+    ) external view returns (uint256[] memory) {
+        return loanCoSigners[loanId];
     }
 }

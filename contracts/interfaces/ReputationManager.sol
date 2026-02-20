@@ -379,6 +379,41 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
     }
 
     /**
+     * @notice Remove co-signing bonus when the underlying loan offer is cancelled
+     * @param borrower The address of the borrower whose bonus is being reversed
+     * @param bonusToRemove The exact bonus amount that was originally added
+     */
+    function removeCoSigningBonus(
+        address borrower,
+        uint256 bonusToRemove
+    ) external onlyRole(COSIGNING_ROLE) nonReentrant {
+        if (borrower == address(0)) revert ReputationManager__InvalidAddress();
+        if (bonusToRemove == 0) return;
+
+        _ensureInitialized(borrower);
+
+        ReputationData storage data = reputationData[borrower];
+        uint256 oldScore = _calculateReputationScore(borrower);
+
+        // Reduce coSigningBonus, floor at 0
+        if (data.coSigningBonus >= bonusToRemove) {
+            data.coSigningBonus -= bonusToRemove;
+        } else {
+            data.coSigningBonus = 0;
+        }
+
+        data.lastActivityTimestamp = block.timestamp;
+
+        uint256 newScore = _calculateReputationScore(borrower);
+        emit ReputationUpdated(
+            borrower,
+            oldScore,
+            newScore,
+            "Co-signing bonus reversed on cancellation"
+        );
+    }
+
+    /**
      * @notice Apply penalty to co-signer when borrower defaults
      * @param coSigner The address of the co-signer
      * @param borrower The address of the borrower who defaulted
@@ -800,6 +835,19 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
 
         // Cooldown passed, reset to full bonus
         return baseBonus;
+    }
+
+    /**
+     * @notice Decrement totalActiveCoSigns for a co-signer
+     *         Called when a co-signing record is cancelled before loan completion
+     */
+    function decrementActiveCoSigns(
+        address coSigner
+    ) external onlyRole(COSIGNING_ROLE) {
+        CoSigningHistory storage history = coSigningHistory[coSigner];
+        if (history.totalActiveCoSigns > 0) {
+            history.totalActiveCoSigns--;
+        }
     }
 
     /**

@@ -301,11 +301,41 @@ const getTokenSymbol = (address) => {
 
 // ✅ FIXED: OfferCard now shows Cancel button for own offers
 const OfferCard = ({ offer, onAccept, onCancel, currentAccount }) => {
+  const { contracts } = useWeb3();
   const isLenderOffer = offer.offerType === 'LENDER_OFFER';
-  const isOwnOffer = offer.creator.toLowerCase() === currentAccount?.toLowerCase();
+  const isOwnOffer = offer.creator?.toLowerCase() === currentAccount?.toLowerCase();
 
   const loanTokenSymbol = getTokenSymbol(offer.terms.tokenAddress);
   const collateralTokenSymbol = getTokenSymbol(offer.terms.collateralToken);
+
+  // ── Fetch live borrower reputation (borrow requests only) ────────────────
+  const [borrowerRep, setBorrowerRep] = useState(null);
+  const [hasCosignerBoost, setHasCosignerBoost] = useState(false);
+
+  useEffect(() => {
+    if (isLenderOffer || !contracts?.reputationManager) return;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const [score, data] = await Promise.all([
+          contracts.reputationManager.getReputationScore(offer.creator),
+          contracts.reputationManager.getReputationData(offer.creator),
+        ]);
+        if (!cancelled) {
+          setBorrowerRep(Number(score));
+          setHasCosignerBoost(Number(data.coSigningBonus) > 0);
+        }
+      } catch { /* fail silently */ }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [offer.creator, isLenderOffer, contracts]);
+  // ─────────────────────────────────────────────────────────────────────────
+
+  const repColor = (s) =>
+    s >= 600 ? 'text-green-600' :
+    s >= 400 ? 'text-blue-600'  :
+    s >= 200 ? 'text-yellow-600' : 'text-red-500';
 
   return (
     <Card hover={!isOwnOffer} className="flex flex-col h-full">
@@ -332,16 +362,11 @@ const OfferCard = ({ offer, onAccept, onCancel, currentAccount }) => {
           <AddressDisplay address={offer.creator} shortened={true} />
         </div>
 
-        {/* ✅ Show collateral info based on offer type */}
         {isLenderOffer ? (
           <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
             <div className="text-xs text-blue-600 mb-1">Collateral Requirement</div>
-            <div className="text-lg font-bold text-blue-900">
-              {offer.terms.collateralRatio}
-            </div>
-            <div className="text-xs text-blue-600 mt-1">
-              Borrower chooses collateral token
-            </div>
+            <div className="text-lg font-bold text-blue-900">{offer.terms.collateralRatio}</div>
+            <div className="text-xs text-blue-600 mt-1">Borrower chooses collateral token</div>
           </div>
         ) : (
           <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
@@ -349,9 +374,7 @@ const OfferCard = ({ offer, onAccept, onCancel, currentAccount }) => {
             <div className="text-lg font-bold text-purple-900">
               {formatTokenAmount(offer.terms.collateralAmount, collateralTokenSymbol || 'WETH')} {collateralTokenSymbol || 'TBD'}
             </div>
-            <div className="text-xs text-purple-600 mt-1">
-              {offer.terms.collateralRatio} ratio
-            </div>
+            <div className="text-xs text-purple-600 mt-1">{offer.terms.collateralRatio} ratio</div>
           </div>
         )}
 
@@ -363,24 +386,46 @@ const OfferCard = ({ offer, onAccept, onCancel, currentAccount }) => {
           <span className="text-gray-600">Duration</span>
           <span className="font-medium">{offer.terms.duration}</span>
         </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-600">Min. Reputation</span>
-          <span className="font-medium">{offer.terms.minReputation}</span>
-        </div>
+
+        {/* Reputation row — different per offer type */}
+        {isLenderOffer ? (
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-600">Min. Borrower Reputation</span>
+            <span className="font-medium">{offer.terms.minReputation}</span>
+          </div>
+        ) : (
+          <div className="flex justify-between text-sm items-center">
+            <span className="text-gray-600">Borrower Reputation</span>
+            <div className="flex items-center gap-1.5">
+              {borrowerRep !== null ? (
+                <>
+                  <span className={`font-semibold ${repColor(borrowerRep)}`}>
+                    {borrowerRep}
+                  </span>
+                  {hasCosignerBoost && (
+                    <span
+                      title="Reputation boosted by a co-signer"
+                      className="inline-flex items-center gap-1 text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-medium"
+                    >
+                      🤝 Co-signed
+                    </span>
+                  )}
+                </>
+              ) : (
+                <span className="text-gray-400 text-xs italic">loading…</span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* ✅ FIXED: Show Cancel button for own offers, Accept button for others */}
       {isOwnOffer ? (
-        <Button 
-          variant="danger" 
-          onClick={() => onCancel(offer)}
-          className="w-full"
-        >
+        <Button variant="danger" onClick={() => onCancel(offer)} className="w-full">
           Cancel Offer
         </Button>
       ) : (
-        <Button 
-          variant={isLenderOffer ? 'success' : 'primary'} 
+        <Button
+          variant={isLenderOffer ? 'success' : 'primary'}
           onClick={() => onAccept(offer)}
           disabled={!currentAccount}
           className="w-full"
@@ -465,7 +510,7 @@ const CreateOfferModal = ({ isOpen, onClose, onSuccess }) => {
         collateralAmount: collateralAmount,
         interestRate: Math.floor(parseFloat(formData.interestRate) * 100),
         duration: parseInt(formData.duration) * 86400,
-        minReputation: parseInt(formData.minReputation),
+        minReputation: isLenderOffer ? parseInt(formData.minReputation) : 0,
         collateralRatio: Math.floor(parseFloat(formData.collateralRatio) * 100),
       };
 
@@ -797,14 +842,16 @@ const CreateOfferModal = ({ isOpen, onClose, onSuccess }) => {
           required
         />
 
-        <Input
-          label="Minimum Reputation"
-          type="number"
-          value={formData.minReputation}
-          onChange={(e) => setFormData({ ...formData, minReputation: e.target.value })}
-          placeholder="100"
-          required
-        />
+        {isLenderOffer && (
+          <Input
+            label="Minimum Borrower Reputation"
+            type="number"
+            value={formData.minReputation}
+            onChange={(e) => setFormData({ ...formData, minReputation: e.target.value })}
+            placeholder="100"
+            helperText="Borrowers below this score cannot accept your offer."
+          />
+        )}
 
         {/* Summary card */}
         {formData.principalAmount && (

@@ -2,7 +2,8 @@ import React from 'react';
 
 export const Input = ({ 
   label, 
-  error, 
+  error,
+  helperText,
   type = 'text', 
   placeholder = '', 
   value, 
@@ -32,6 +33,7 @@ export const Input = ({
         {...props}
       />
       {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+      {!error && helperText && <p className="mt-1 text-xs text-gray-500">{helperText}</p>}
     </div>
   );
 };

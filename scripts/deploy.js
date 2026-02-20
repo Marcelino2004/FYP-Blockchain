@@ -64,7 +64,7 @@ const CONFIG = {
 
 async function main() {
   console.log(
-    "🚀 Starting Decentralized Reputation Lending Platform Deployment\n"
+    "🚀 Starting Decentralized Reputation Lending Platform Deployment\n",
   );
   console.log("=".repeat(70));
 
@@ -143,7 +143,7 @@ async function main() {
   const lendingPool = await LendingPool.deploy(
     reputationManagerAddress,
     collateralManagerAddress,
-    feeCollector
+    feeCollector,
   );
   await lendingPool.waitForDeployment();
   const lendingPoolAddress = await lendingPool.getAddress();
@@ -156,7 +156,7 @@ async function main() {
   const CoSigningManager = await ethers.getContractFactory("CoSigningManager");
   const coSigningManager = await CoSigningManager.deploy(
     reputationManagerAddress,
-    lendingPoolAddress
+    lendingPoolAddress,
   );
   await coSigningManager.waitForDeployment();
   const coSigningManagerAddress = await coSigningManager.getAddress();
@@ -189,15 +189,14 @@ async function main() {
   const tokenAddresses =
     CONFIG.tokenAddresses[networkName] || CONFIG.tokenAddresses.sepolia;
 
-  // ✅ FIX: Wait for each setPriceFeed transaction to be mined
   if (tokenAddresses.WETH && priceFeeds.ETH_USD) {
     try {
       const tx = await priceOracle.setPriceFeed(
         tokenAddresses.WETH,
         priceFeeds.ETH_USD,
-        "WETH"
+        "WETH",
       );
-      await tx.wait(); // ✅ CRITICAL: Wait for transaction to be mined!
+      await tx.wait();
       console.log("   ✅ WETH price feed set");
     } catch (error) {
       console.log(`   ⚠️  WETH price feed failed: ${error.message}`);
@@ -209,7 +208,7 @@ async function main() {
       const tx = await priceOracle.setPriceFeed(
         tokenAddresses.WBTC,
         priceFeeds.BTC_USD,
-        "WBTC"
+        "WBTC",
       );
       await tx.wait(); // ✅ CRITICAL: Wait for transaction to be mined!
       console.log("   ✅ WBTC price feed set");
@@ -223,7 +222,7 @@ async function main() {
       const tx = await priceOracle.setPriceFeed(
         tokenAddresses.USDC,
         priceFeeds.USDC_USD,
-        "USDC"
+        "USDC",
       );
       await tx.wait(); // ✅ CRITICAL: Wait for transaction to be mined!
       console.log("   ✅ USDC price feed set");
@@ -237,7 +236,7 @@ async function main() {
   const LENDING_POOL_ROLE_CM = await collateralManager.LENDING_POOL_ROLE();
   const grantRoleTx1 = await collateralManager.grantRole(
     LENDING_POOL_ROLE_CM,
-    lendingPoolAddress
+    lendingPoolAddress,
   );
   await grantRoleTx1.wait(); // ✅ Wait for transaction
   console.log("   ✅ LENDING_POOL_ROLE granted to LendingPool");
@@ -254,7 +253,7 @@ async function main() {
           tokenAddress,
           token.decimals,
           token.maxDeposit,
-          token.liquidationPenalty
+          token.liquidationPenalty,
         );
         await tx.wait(); // ✅ Wait for transaction
         console.log(`   ✅ ${token.name} added as collateral`);
@@ -273,17 +272,20 @@ async function main() {
 
   const grantRoleTx2 = await reputationManager.grantRole(
     LENDING_POOL_ROLE_RM,
-    lendingPoolAddress
+    lendingPoolAddress,
   );
   await grantRoleTx2.wait(); // ✅ Wait for transaction
   console.log("   ✅ LENDING_POOL_ROLE granted to LendingPool");
 
   const grantRoleTx3 = await reputationManager.grantRole(
     COSIGNING_ROLE,
-    coSigningManagerAddress
+    coSigningManagerAddress,
   );
   await grantRoleTx3.wait(); // ✅ Wait for transaction
   console.log("   ✅ COSIGNING_ROLE granted to CoSigningManager");
+
+  await lendingPool.setCoSigningManager(await coSigningManager.getAddress());
+  console.log("   ✅ CoSigningManager set on LendingPool");
 
   // Configure LendingPool
   console.log("\n⚙️  Configuring LendingPool...");
@@ -352,22 +354,22 @@ async function main() {
     console.log("=".repeat(70));
     console.log("\nRun these commands to verify contracts on Etherscan:\n");
     console.log(
-      `npx hardhat verify --network ${networkName} ${reputationManagerAddress}`
+      `npx hardhat verify --network ${networkName} ${reputationManagerAddress}`,
     );
     console.log(
-      `npx hardhat verify --network ${networkName} ${priceOracleAddress}`
+      `npx hardhat verify --network ${networkName} ${priceOracleAddress}`,
     );
     console.log(
-      `npx hardhat verify --network ${networkName} ${collateralManagerAddress} ${priceOracleAddress}`
+      `npx hardhat verify --network ${networkName} ${collateralManagerAddress} ${priceOracleAddress}`,
     );
     console.log(
-      `npx hardhat verify --network ${networkName} ${lendingPoolAddress} ${reputationManagerAddress} ${collateralManagerAddress} ${feeCollector}`
+      `npx hardhat verify --network ${networkName} ${lendingPoolAddress} ${reputationManagerAddress} ${collateralManagerAddress} ${feeCollector}`,
     );
     console.log(
-      `npx hardhat verify --network ${networkName} ${coSigningManagerAddress} ${reputationManagerAddress} ${lendingPoolAddress}`
+      `npx hardhat verify --network ${networkName} ${coSigningManagerAddress} ${reputationManagerAddress} ${lendingPoolAddress}`,
     );
     console.log(
-      `npx hardhat verify --network ${networkName} ${lendingPoolLensAddress} ${lendingPoolAddress}`
+      `npx hardhat verify --network ${networkName} ${lendingPoolLensAddress} ${lendingPoolAddress}`,
     );
     console.log("\n" + "=".repeat(70));
   }

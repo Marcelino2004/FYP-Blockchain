@@ -7,13 +7,14 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./ReputationManager.sol";
 import "./CollateralManager.sol";
+import "./CoSigningManager.sol";
 import "./LoanLogic.sol";
 import "./ActiveOfferLib.sol";
 
 /**
  * @title LendingPool
  * @notice Core P2P lending pool with reputation-based matching
- * @dev Integrates with ReputationManager and CollateralManager
+ * @dev Integrates with ReputationManager, CollateralManager, and CoSigningManager
  */
 contract LendingPool is AccessControl, ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -22,6 +23,7 @@ contract LendingPool is AccessControl, ReentrancyGuard {
 
     ReputationManager public immutable reputationManager;
     CollateralManager public immutable collateralManager;
+    CoSigningManager public coSigningManager; // ← NEW: mutable so it can be set after deploy
 
     // Counters
     uint256 public nextOfferId = 1;
@@ -151,6 +153,12 @@ contract LendingPool is AccessControl, ReentrancyGuard {
 
     event PlatformFeeRateUpdated(uint256 oldRate, uint256 newRate);
 
+    // ← NEW EVENT
+    event CoSigningManagerUpdated(
+        address indexed oldManager,
+        address indexed newManager
+    );
+
     // ============ Errors ============
 
     error LendingPool__InvalidAmount();
@@ -203,7 +211,6 @@ contract LendingPool is AccessControl, ReentrancyGuard {
         LoanType offerType,
         LoanTerms calldata terms
     ) external nonReentrant returns (uint256 offerId) {
-        // Validate terms
         _validateLoanTerms(terms);
 
         offerId = nextOfferId++;
@@ -219,11 +226,10 @@ contract LendingPool is AccessControl, ReentrancyGuard {
 
         userOffers[msg.sender].push(offerId);
 
-        // Add to appropriate active list
         if (offerType == LoanType.LENDER_OFFER) {
             activeLenderOffers.push(offerId);
 
-            // Lender must lock funds
+            // Lender locks funds upfront
             IERC20(terms.tokenAddress).safeTransferFrom(
                 msg.sender,
                 address(this),
@@ -247,6 +253,8 @@ contract LendingPool is AccessControl, ReentrancyGuard {
 
     /**
      * @notice Cancel an active loan offer
+     * @dev Also cancels any accepted co-signing records linked to this offer,
+     *      reversing the reputation bonus given to the borrower.
      * @param offerId The ID of the offer to cancel
      */
     function cancelLoanOffer(uint256 offerId) external nonReentrant {
@@ -266,12 +274,31 @@ contract LendingPool is AccessControl, ReentrancyGuard {
             ActiveOfferLib.remove(activeBorrowerRequests, offerId);
         }
 
-        // Return funds if lender offer
+        // Return locked funds to lender
         if (offer.offerType == LoanType.LENDER_OFFER) {
             IERC20(offer.terms.tokenAddress).safeTransfer(
                 msg.sender,
                 offer.terms.principalAmount
             );
+        }
+
+        // ← NEW: cancel any active co-signing records for this offer so that
+        //   (a) the reputation bonus given to the borrower is reversed, and
+        //   (b) the co-signer's active count is decremented correctly.
+        if (address(coSigningManager) != address(0)) {
+            uint256[] memory recordIds = coSigningManager.getRecordsByOffer(
+                offerId
+            );
+            for (uint256 i = 0; i < recordIds.length; i++) {
+                CoSigningManager.CoSigningRecord
+                    memory record = coSigningManager.getCoSigningRecord(
+                        recordIds[i]
+                    );
+                if (record.isActive) {
+                    // cancelCoSigningRecord reverses the bonus and marks inactive
+                    coSigningManager.cancelCoSigningRecord(recordIds[i]);
+                }
+            }
         }
 
         emit LoanOfferCancelled(offerId, msg.sender);
@@ -295,11 +322,11 @@ contract LendingPool is AccessControl, ReentrancyGuard {
         address borrower;
 
         if (offer.offerType == LoanType.LENDER_OFFER) {
-            // Lender created offer, msg.sender is borrower
+            // Lender created the offer — msg.sender is the borrower
             lender = offer.creator;
             borrower = msg.sender;
 
-            // Check borrower's reputation
+            // Enforce minimum reputation for borrower
             if (
                 !reputationManager.meetsReputationRequirement(
                     borrower,
@@ -309,11 +336,11 @@ contract LendingPool is AccessControl, ReentrancyGuard {
                 revert LendingPool__InsufficientReputation();
             }
         } else {
-            // Borrower created request, msg.sender is lender
+            // Borrower created the request — msg.sender is the lender
             lender = msg.sender;
             borrower = offer.creator;
 
-            // Lender must provide funds
+            // Lender provides funds now
             IERC20(offer.terms.tokenAddress).safeTransferFrom(
                 lender,
                 address(this),
@@ -334,7 +361,7 @@ contract LendingPool is AccessControl, ReentrancyGuard {
             collateralManager.lockCollateral(collateralDepositId, nextLoanId);
         }
 
-        // Create loan
+        // Create the loan
         loanId = nextLoanId++;
 
         loans[loanId] = Loan({
@@ -355,7 +382,31 @@ contract LendingPool is AccessControl, ReentrancyGuard {
         userLoans[lender].push(loanId);
         userLoans[borrower].push(loanId);
 
-        // Deactivate offer
+        if (address(coSigningManager) != address(0)) {
+            uint256[] memory recordIds = coSigningManager.getRecordsByOffer(
+                offerId
+            );
+
+            for (uint256 i = 0; i < recordIds.length; i++) {
+                CoSigningManager.CoSigningRecord
+                    memory record = coSigningManager.getCoSigningRecord(
+                        recordIds[i]
+                    );
+
+                if (record.isActive && !record.wasCancelled) {
+                    // Link this record to the newly created loan
+                    coSigningManager.linkRecordToLoan(recordIds[i], loanId);
+
+                    // Update loan struct to reflect co-signer
+                    loans[loanId].hasCoSigner = true;
+                    loans[loanId].coSigner = record.coSigner;
+
+                    break; // Only one co-signer per loan for now
+                }
+            }
+        }
+
+        // Deactivate offer and remove from active list
         offer.isActive = false;
         if (offer.offerType == LoanType.LENDER_OFFER) {
             ActiveOfferLib.remove(activeLenderOffers, offerId);
@@ -468,19 +519,28 @@ contract LendingPool is AccessControl, ReentrancyGuard {
 
         loan.status = LoanStatus.DEFAULTED;
 
-        // Apply reputation penalties
+        // Apply reputation penalty to borrower
         reputationManager.recordDefault(
             loan.borrower,
             loan.terms.principalAmount
         );
 
-        // Penalize co-signer if exists
+        // Penalize co-signer if one exists
         if (loan.hasCoSigner) {
             reputationManager.penalizeCoSigner(
                 loan.coSigner,
                 loan.borrower,
                 loan.terms.principalAmount
             );
+        }
+
+        if (loan.hasCoSigner && address(coSigningManager) != address(0)) {
+            uint256[] memory recordIds = coSigningManager.getLoanCoSigners(
+                loanId
+            );
+            for (uint256 i = 0; i < recordIds.length; i++) {
+                coSigningManager.releaseCoSigning(recordIds[i], false); // false = defaulted
+            }
         }
 
         emit LoanDefaulted(loanId, loan.borrower, unpaidAmount);
@@ -490,43 +550,16 @@ contract LendingPool is AccessControl, ReentrancyGuard {
     // ============ View Functions ============
 
     /**
-     * @notice Calculate total amount due for a loan (principal + interest)
-     * @param loanId The ID of the loan
-     * @return The total amount due
-     */
-    /*
-    function calculateAmountDue(uint256 loanId) public view returns (uint256) {
-        Loan memory loan = loans[loanId];
-
-        if (
-            loan.status == LoanStatus.PENDING ||
-            loan.status == LoanStatus.CANCELLED
-        ) {
-            return 0;
-        }
-
-        uint256 interest = (loan.terms.principalAmount *
-            loan.terms.interestRate) / BASIS_POINTS;
-        return loan.terms.principalAmount + interest;
-    }
-    */
-    /**
      * @notice Check if a loan is past due
-     * @param loanId The ID of the loan
-     * @return true if loan is past due
      */
     function isLoanOverdue(uint256 loanId) external view returns (bool) {
         Loan memory loan = loans[loanId];
-
         if (loan.status != LoanStatus.ACTIVE) return false;
-
         return block.timestamp > loan.dueTime;
     }
 
     /**
      * @notice Get loan details
-     * @param loanId The ID of the loan
-     * @return Loan struct with all details
      */
     function getLoan(uint256 loanId) external view returns (Loan memory) {
         return loans[loanId];
@@ -534,8 +567,6 @@ contract LendingPool is AccessControl, ReentrancyGuard {
 
     /**
      * @notice Get loan offer details
-     * @param offerId The ID of the offer
-     * @return LoanOffer struct with all details
      */
     function getLoanOffer(
         uint256 offerId
@@ -561,8 +592,6 @@ contract LendingPool is AccessControl, ReentrancyGuard {
 
     /**
      * @notice Get all loans for a user (as lender or borrower)
-     * @param user The address of the user
-     * @return Array of loan IDs
      */
     function getUserLoans(
         address user
@@ -572,8 +601,6 @@ contract LendingPool is AccessControl, ReentrancyGuard {
 
     /**
      * @notice Get user's loan offers
-     * @param user The address of the user
-     * @return Array of offer IDs
      */
     function getUserOffers(
         address user
@@ -583,7 +610,6 @@ contract LendingPool is AccessControl, ReentrancyGuard {
 
     /**
      * @notice Get the next loan ID (for counting total loans)
-     * @return The next loan ID
      */
     function getNextLoanId() external view returns (uint256) {
         return nextLoanId;
@@ -591,7 +617,6 @@ contract LendingPool is AccessControl, ReentrancyGuard {
 
     /**
      * @notice Get the next offer ID (for counting total offers)
-     * @return The next offer ID
      */
     function getNextOfferId() external view returns (uint256) {
         return nextOfferId;
@@ -599,7 +624,6 @@ contract LendingPool is AccessControl, ReentrancyGuard {
 
     /**
      * @notice Get the platform fee rate
-     * @return The platform fee rate in basis points
      */
     function getPlatformFeeRate() external view returns (uint256) {
         return platformFeeRate;
@@ -607,7 +631,6 @@ contract LendingPool is AccessControl, ReentrancyGuard {
 
     /**
      * @notice Get the basis points constant
-     * @return The basis points value (10000)
      */
     function getBasisPoints() external pure returns (uint256) {
         return BASIS_POINTS;
@@ -641,11 +664,24 @@ contract LendingPool is AccessControl, ReentrancyGuard {
         feeCollector = newFeeCollector;
     }
 
+    /**
+     * @notice Set the CoSigningManager address
+     * @dev Called once after both contracts are deployed. Can be updated by admin.
+     * @param _coSigningManager Address of the deployed CoSigningManager
+     */
+    function setCoSigningManager(
+        address _coSigningManager
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_coSigningManager == address(0)) revert LendingPool__ZeroAddress();
+        address old = address(coSigningManager);
+        coSigningManager = CoSigningManager(_coSigningManager);
+        emit CoSigningManagerUpdated(old, _coSigningManager);
+    }
+
     // ============ Internal Functions ============
 
     /**
      * @notice Complete loan repayment and unlock collateral
-     * @param loanId The ID of the loan
      */
     function _completeLoanRepayment(uint256 loanId) internal {
         Loan storage loan = loans[loanId];
@@ -657,15 +693,25 @@ contract LendingPool is AccessControl, ReentrancyGuard {
             collateralManager.unlockCollateral(loan.collateralDepositId);
         }
 
-        // Update reputation
+        // Update borrower reputation
         reputationManager.recordSuccessfulRepayment(
             loan.borrower,
             loan.terms.principalAmount
         );
 
-        // Reward co-signer if exists
+        // Reward co-signer if one exists
         if (loan.hasCoSigner) {
             reputationManager.rewardCoSigner(loan.coSigner, loan.borrower);
+        }
+
+        if (loan.hasCoSigner && address(coSigningManager) != address(0)) {
+            // Find the record ID(s) for this loan
+            uint256[] memory recordIds = coSigningManager.getLoanCoSigners(
+                loanId
+            );
+            for (uint256 i = 0; i < recordIds.length; i++) {
+                coSigningManager.releaseCoSigning(recordIds[i], true); // true = successful
+            }
         }
 
         emit LoanRepaid(loanId, loan.borrower, loan.amountRepaid);
@@ -673,7 +719,6 @@ contract LendingPool is AccessControl, ReentrancyGuard {
 
     /**
      * @notice Validate loan terms
-     * @param terms The loan terms to validate
      */
     function _validateLoanTerms(LoanTerms calldata terms) internal pure {
         if (terms.principalAmount == 0) revert LendingPool__InvalidAmount();
@@ -693,8 +738,6 @@ contract LendingPool is AccessControl, ReentrancyGuard {
 
     /**
      * @notice Remove offer from active list
-     * @param offerId The offer ID to remove
-     * @param offerType The type of offer
      */
     function _removeFromActiveList(
         uint256 offerId,

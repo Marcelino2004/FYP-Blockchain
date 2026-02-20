@@ -148,7 +148,27 @@ async function main() {
     await coSigningManager.getAddress(),
   );
 
+  const DEFAULT_ADMIN_ROLE_CSM = await coSigningManager.DEFAULT_ADMIN_ROLE();
+  await coSigningManager.grantRole(
+    DEFAULT_ADMIN_ROLE_CSM,
+    await lendingPool.getAddress(),
+  );
+
+  await lendingPool.setCoSigningManager(await coSigningManager.getAddress());
+
   console.log("   ✅ Roles configured");
+
+  await lendingPool.setCoSigningManager(await coSigningManager.getAddress());
+  console.log("   ✅ CoSigningManager set on LendingPool");
+
+  const DEFAULT_ADMIN_ROLE = await coSigningManager.DEFAULT_ADMIN_ROLE();
+  await coSigningManager.grantRole(
+    DEFAULT_ADMIN_ROLE,
+    await lendingPool.getAddress(),
+  );
+  console.log(
+    "   ✅ DEFAULT_ADMIN_ROLE granted to LendingPool on CoSigningManager",
+  );
 
   // Add collateral tokens
   await collateralManager.addSupportedToken(

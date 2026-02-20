@@ -262,8 +262,8 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\CoSigningManager.sol": {
-      "lastModificationDate": 1767520218673,
-      "contentHash": "37ea821729c144c846005772954b0c0e",
+      "lastModificationDate": 1771594002412,
+      "contentHash": "df3d38fb7f4eb3d079127e50f2da9d22",
       "sourceName": "contracts/interfaces/CoSigningManager.sol",
       "solcConfig": {
         "version": "0.8.20",
@@ -355,8 +355,8 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\LendingPool.sol": {
-      "lastModificationDate": 1771075594952,
-      "contentHash": "3cbd6f0a5bf3c2b07a71dd0724ec33dd",
+      "lastModificationDate": 1771594105927,
+      "contentHash": "08608f48eb219bb8c68be82b4506907e",
       "sourceName": "contracts/interfaces/LendingPool.sol",
       "solcConfig": {
         "version": "0.8.20",
@@ -397,6 +397,7 @@
         "@openzeppelin/contracts/security/ReentrancyGuard.sol",
         "./ReputationManager.sol",
         "./CollateralManager.sol",
+        "./CoSigningManager.sol",
         "./LoanLogic.sol",
         "./ActiveOfferLib.sol"
       ],
@@ -455,8 +456,8 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\ReputationManager.sol": {
-      "lastModificationDate": 1771231374127,
-      "contentHash": "ea04d9b89ffc50b0f18f3335b52d59db",
+      "lastModificationDate": 1771316829936,
+      "contentHash": "b95c045268f805b476cfb1f8075aa454",
       "sourceName": "contracts/interfaces/ReputationManager.sol",
       "solcConfig": {
         "version": "0.8.20",

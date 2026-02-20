@@ -170,6 +170,8 @@ export const REPUTATION_MANAGER_ABI = [
   "function getReputationData(address user) view returns (tuple(uint256 baseScore, uint256 totalTransactions, uint256 uniqueCounterparties, uint256 totalValueTransferred, uint256 successfulRepayments, uint256 totalRepaymentValue, uint256 defaults, uint256 totalDefaultValue, uint256 walletCreationTime, uint256 lastActivityTimestamp, uint256 lastReputationUpdate, bool emailVerified, bool phoneVerified, uint256 coSigningBonus, uint256 reputationGainedToday, uint256 lastDailyResetTimestamp))",
   "function initializeReputation(address user)",
   "function meetsReputationRequirement(address user, uint256 minimumReputation) view returns (bool)",
+  "function removeCoSigningBonus(address borrower, uint256 bonusToRemove)",
+  "function decrementActiveCoSigns(address coSigner)",
 ];
 
 // LendingPool ABI
@@ -182,11 +184,12 @@ export const LENDING_POOL_ABI = [
   "function getLoanOffer(uint256 offerId) view returns (tuple(uint256 offerId, uint8 offerType, address creator, tuple(address tokenAddress, uint256 principalAmount, uint256 collateralAmount, address collateralToken, uint256 interestRate, uint256 duration, uint256 minReputation, uint256 collateralRatio) terms, bool isActive, uint256 createdAt))",
   "function calculateAmountDue(uint256 loanId) view returns (uint256)",
   "function isLoanOverdue(uint256 loanId) view returns (bool)",
-  "function getActiveLenderOffers() view returns (uint256[])",
-  "function getActiveBorrowerRequests() view returns (uint256[])",
+  "function getActiveLenderOfferIds() view returns (uint256[])",
+  "function getActiveBorrowerRequestIds() view returns (uint256[])",
   "function getUserLoans(address user) view returns (uint256[])",
   "function nextLoanId() view returns (uint256)",
   "function nextOfferId() view returns (uint256)",
+  "function setCoSigningManager(address _coSigningManager)",
 ];
 
 // LendingPoolLens ABI
@@ -222,6 +225,11 @@ export const COSIGNING_MANAGER_ABI = [
   "function getAllOpenRequests() view returns (tuple(uint256 requestId, address borrower, uint256 loanOfferId, uint256 requestedBonus, bool isActive, uint256 createdAt, string message)[])",
   "function getUserCoSignings(address coSigner) view returns (uint256[])",
   "function getCoSigningStats(address user) view returns (uint256 totalCoSignings, uint256 activeCoSignings, uint256 successfulCoSignings, uint256 defaultedCoSignings)",
+  "function cancelCoSigningRecord(uint256 recordId)",
+  "function getRecordsByOffer(uint256 loanOfferId) view returns (uint256[])",
+  "function getCoSigningRecord(uint256 recordId) view returns (tuple(uint256 recordId, address coSigner, address borrower, uint256 loanId, uint256 reputationStaked, uint256 bonusProvided, uint256 coSignTimestamp, bool isActive, bool loanCompleted, bool borrowerDefaulted, bool wasCancelled))",
+  "function linkRecordToLoan(uint256 recordId, uint256 loanId)",
+  "function getLoanCoSigners(uint256 loanId) view returns (uint256[])",
 ];
 
 // PriceOracle ABI
