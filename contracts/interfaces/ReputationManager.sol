@@ -838,6 +838,17 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
     }
 
     /**
+     * @notice Clear co-signing bonus from a borrower after the co-sign is released
+     * @param borrower The address of the borrower
+     */
+    function clearCoSigningBonus(
+        address borrower
+    ) external onlyRole(COSIGNING_ROLE) {
+        if (borrower == address(0)) revert ReputationManager__InvalidAddress();
+        reputationData[borrower].coSigningBonus = 0;
+    }
+
+    /**
      * @notice Decrement totalActiveCoSigns for a co-signer
      *         Called when a co-signing record is cancelled before loan completion
      */

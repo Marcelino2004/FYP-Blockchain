@@ -148,6 +148,11 @@ async function main() {
     await coSigningManager.getAddress(),
   );
 
+  await reputationManager.grantRole(
+    COSIGNING_ROLE,
+    await lendingPool.getAddress(),
+  );
+
   const DEFAULT_ADMIN_ROLE_CSM = await coSigningManager.DEFAULT_ADMIN_ROLE();
   await coSigningManager.grantRole(
     DEFAULT_ADMIN_ROLE_CSM,

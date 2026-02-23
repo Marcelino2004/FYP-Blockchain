@@ -49,6 +49,8 @@ contract LendingPool is AccessControl, ReentrancyGuard {
     uint256 public constant MAX_LOAN_DURATION = 365 days;
     uint256 public constant MAX_INTEREST_RATE = 5000; // 50%
 
+    uint256 public constant MIN_COLLATERAL_RATIO = 12000;
+
     address public feeCollector;
 
     // ============ Enums ============
@@ -211,7 +213,7 @@ contract LendingPool is AccessControl, ReentrancyGuard {
         LoanType offerType,
         LoanTerms calldata terms
     ) external nonReentrant returns (uint256 offerId) {
-        _validateLoanTerms(terms);
+        _validateLoanTerms(terms, offerType);
 
         offerId = nextOfferId++;
 
@@ -699,6 +701,12 @@ contract LendingPool is AccessControl, ReentrancyGuard {
             loan.terms.principalAmount
         );
 
+        // Update lender reputation
+        reputationManager.recordSuccessfulRepayment(
+            loan.lender,
+            loan.terms.principalAmount
+        );
+
         // Reward co-signer if one exists
         if (loan.hasCoSigner) {
             reputationManager.rewardCoSigner(loan.coSigner, loan.borrower);
@@ -720,19 +728,36 @@ contract LendingPool is AccessControl, ReentrancyGuard {
     /**
      * @notice Validate loan terms
      */
-    function _validateLoanTerms(LoanTerms calldata terms) internal pure {
+    function _validateLoanTerms(
+        LoanTerms calldata terms,
+        LoanType offerType
+    ) internal pure {
         if (terms.principalAmount == 0) revert LendingPool__InvalidAmount();
         if (
             terms.duration < MIN_LOAN_DURATION ||
             terms.duration > MAX_LOAN_DURATION
-        ) {
-            revert LendingPool__InvalidDuration();
-        }
-        if (terms.interestRate > MAX_INTEREST_RATE) {
+        ) revert LendingPool__InvalidDuration();
+        if (terms.interestRate > MAX_INTEREST_RATE)
             revert LendingPool__InvalidInterestRate();
-        }
-        if (terms.collateralRatio > 0 && terms.collateralRatio < 10000) {
-            revert LendingPool__InvalidCollateralRatio();
+
+        if (offerType == LoanType.LENDER_OFFER) {
+            // Lender sets the ratio as a requirement for the borrower.
+            // A ratio of 0 means uncollateralized; otherwise enforce the floor.
+            if (
+                terms.collateralRatio != 0 &&
+                terms.collateralRatio < MIN_COLLATERAL_RATIO
+            ) revert LendingPool__InvalidCollateralRatio();
+        } else {
+            // Borrower request: they pre-deposit collateral themselves.
+            // If they specify an amount, the ratio must meet the floor.
+            // If no collateral, ratio must also be 0.
+            if (terms.collateralAmount > 0) {
+                if (terms.collateralRatio < MIN_COLLATERAL_RATIO)
+                    revert LendingPool__InvalidCollateralRatio();
+            } else {
+                if (terms.collateralRatio != 0)
+                    revert LendingPool__InvalidCollateralRatio();
+            }
         }
     }
 

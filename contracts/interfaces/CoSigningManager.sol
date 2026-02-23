@@ -382,9 +382,11 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         record.isActive = false;
         record.loanCompleted = true;
 
+        // FIX: Always clear the borrower's co-signing bonus on release
+        reputationManager.clearCoSigningBonus(record.borrower);
+
         if (successfulRepayment) {
             reputationManager.rewardCoSigner(record.coSigner, record.borrower);
-
             emit CoSignerRewarded(
                 recordId,
                 record.coSigner,
@@ -393,13 +395,11 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
             );
         } else {
             record.borrowerDefaulted = true;
-
             reputationManager.penalizeCoSigner(
                 record.coSigner,
                 record.borrower,
                 record.reputationStaked
             );
-
             emit CoSignerPenalized(
                 recordId,
                 record.coSigner,
