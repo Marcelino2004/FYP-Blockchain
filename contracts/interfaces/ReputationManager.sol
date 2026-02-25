@@ -20,13 +20,13 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
     // Reputation score bounds
     uint256 public constant MIN_REPUTATION = 0;
     uint256 public constant MAX_REPUTATION = 1000;
-    uint256 public constant STARTING_REPUTATION = 100;
+    uint256 public constant STARTING_REPUTATION = 150;
 
     // Reputation weights (out of 100 for percentage)
-    uint256 public constant REPAYMENT_WEIGHT = 55; // was 50% weight
-    uint256 public constant TRANSACTION_WEIGHT = 30; // was 25% weight
+    uint256 public constant REPAYMENT_WEIGHT = 20; // was 50% weight
+    uint256 public constant TRANSACTION_WEIGHT = 45; // was 25% weight
     //uint256 public constant COSIGNING_WEIGHT = 0; // was 15% weight
-    uint256 public constant WALLET_AGE_WEIGHT = 15; // was 10% weight
+    uint256 public constant WALLET_AGE_WEIGHT = 35; // was 10% weight
 
     // Decay parameters
     uint256 public constant DECAY_START_DAYS = 90; // Start decay after 90 days of inactivity
@@ -175,6 +175,7 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
             data.lastActivityTimestamp = block.timestamp;
             data.lastReputationUpdate = block.timestamp;
             data.lastDailyResetTimestamp = block.timestamp;
+            data.dailyScoreSnapshot = STARTING_REPUTATION / 2;
 
             emit ReputationUpdated(
                 user,
@@ -211,7 +212,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         uint256 bonus = _calculateRepaymentBonus(loanAmount);
 
         data.baseScore = _min(data.baseScore + bonus, MAX_REPUTATION);
-        data.reputationGainedToday += bonus;
 
         _checkDailyScoreCap(borrower, oldScore);
 
@@ -453,7 +453,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         uint256 reward = 10;
 
         data.baseScore = _min(data.baseScore + reward, MAX_REPUTATION);
-        data.reputationGainedToday += reward;
         data.lastActivityTimestamp = block.timestamp;
 
         // Update co-signing history
@@ -585,22 +584,32 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         ReputationData storage data = reputationData[user];
         if (data.walletCreationTime == 0) return 0;
 
-        uint256 score = data.baseScore; // coSigningBonus no longer added here
+        uint256 score = data.baseScore;
 
-        uint256 repaymentScore = _calculateRepaymentScore(data);
+        uint256 defaultPenaltyScore = _calculateRepaymentScore(data); // now a penalty
         uint256 transactionScore = _calculateTransactionScore(data);
         uint256 walletAgeScore = _calculateWalletAgeScore(data);
 
-        // REMOVE: data.coSigningBonus * COSIGNING_WEIGHT from weighted score
-        uint256 weightedScore = (repaymentScore *
-            REPAYMENT_WEIGHT +
-            transactionScore *
+        // Weighted bonus from structural signals (only adds up to 80 here)
+        uint256 weightedBonus = (transactionScore *
             TRANSACTION_WEIGHT +
             walletAgeScore *
-            WALLET_AGE_WEIGHT) / 100;
+            WALLET_AGE_WEIGHT) / 80;
 
-        score = (score + weightedScore) / 2;
+        // Weighted drag from default history
+        uint256 weightedPenalty = (defaultPenaltyScore * REPAYMENT_WEIGHT) /
+            100;
 
+        score = (score + weightedBonus) / 2;
+
+        // Apply default drag
+        if (score > weightedPenalty) {
+            score -= weightedPenalty;
+        } else {
+            score = MIN_REPUTATION;
+        }
+
+        // Apply decay
         uint256 decayAmount = _calculateDecay(data);
         score = score > decayAmount ? score - decayAmount : MIN_REPUTATION;
 
@@ -613,29 +622,23 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
     function _calculateRepaymentScore(
         ReputationData storage data
     ) internal view returns (uint256) {
-        if (data.successfulRepayments == 0 && data.defaults == 0) {
-            return STARTING_REPUTATION;
-        }
+        // No repayment credit here — flows through baseScore instead.
+        // This component only signals default history and is used as a penalty drag.
+        if (data.defaults == 0) return 0;
 
-        // Base calculation: successful repayments contribute positively
-        uint256 successScore = data.successfulRepayments * 30;
-
-        // Defaults severely hurt score
         uint256 defaultPenalty = data.defaults * 80;
 
-        // Factor in loan amounts
-        uint256 valueScore = 0;
+        // Partial mitigation if user has substantial repayment history
+        uint256 mitigationScore = 0;
         if (data.totalRepaymentValue > 0) {
-            valueScore = _min((data.totalRepaymentValue / 1 ether) * 5, 100);
+            mitigationScore = _min(
+                (data.totalRepaymentValue / 1 ether) * 2,
+                60
+            );
         }
 
-        uint256 totalScore = successScore + valueScore;
-
-        if (totalScore > defaultPenalty) {
-            return _min(totalScore - defaultPenalty, 300);
-        }
-
-        return 0;
+        if (mitigationScore >= defaultPenalty) return 0;
+        return _min(defaultPenalty - mitigationScore, 300); // returns a PENALTY magnitude
     }
 
     /**
@@ -836,7 +839,7 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
             reputationData[user].lastReputationUpdate = block.timestamp;
             reputationData[user].lastDailyResetTimestamp = block.timestamp;
             reputationData[user].lastSnapshotTimestamp = block.timestamp;
-            reputationData[user].dailyScoreSnapshot = STARTING_REPUTATION;
+            reputationData[user].dailyScoreSnapshot = STARTING_REPUTATION / 2;
         }
     }
 
@@ -865,20 +868,17 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
     ) internal {
         ReputationData storage data = reputationData[user];
 
-        // Reset snapshot if it's a new day
         if (block.timestamp >= data.lastSnapshotTimestamp + 1 days) {
             data.dailyScoreSnapshot = scoreBeforeAction;
             data.lastSnapshotTimestamp = block.timestamp;
         }
 
-        // After updating baseScore/counters, check if final score exceeds cap
-        uint256 newScore = _calculateReputationScore(user);
+        uint256 currentScore = _calculateReputationScore(user);
         uint256 allowedMax = data.dailyScoreSnapshot +
             MAX_REPUTATION_GAIN_PER_PERIOD;
 
-        if (newScore > allowedMax) {
-            // Pull baseScore back down until score meets the cap
-            uint256 excess = newScore - allowedMax;
+        if (currentScore > allowedMax) {
+            uint256 excess = currentScore - allowedMax;
             if (data.baseScore > excess) {
                 data.baseScore -= excess;
             } else {
