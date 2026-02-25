@@ -541,27 +541,19 @@ const ReputationPage = () => {
         </Card>
       </div>
 
-      {/* Co-signing Bonus */}
-      {data.coSigningBonus > 0 && (
-        <Card className="bg-purple-50 border-2 border-purple-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
-                <svg className="h-5 w-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-                Co-signing Bonus
-              </h3>
-              <p className="text-sm text-gray-600">
-                You&apos;ve earned additional reputation through co-signing relationships
-              </p>
-            </div>
-            <div className="text-3xl font-bold text-purple-600">
-              +{data.coSigningBonus}
-            </div>
+      <Card className="bg-purple-50 border-2 border-purple-200">
+        <div className="flex items-center gap-3">
+          <svg className="h-5 w-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+          <div>
+            <h3 className="font-semibold text-purple-900">Co-signing</h3>
+            <p className="text-sm text-purple-700">
+              Co-signing bonuses are permanently applied to your base score when a co-signed loan is matched.
+            </p>
           </div>
-        </Card>
-      )}
+        </div>
+      </Card>
 
       {/* How to Improve */}
       <Card className="bg-blue-50">

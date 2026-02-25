@@ -178,6 +178,7 @@ contract LendingPool is AccessControl, ReentrancyGuard {
     error LendingPool__ZeroAddress();
     error LendingPool__TransferFailed();
     error LendingPool__InvalidFeeRate();
+    error LendingPool__CoSignerCannotBeLender();
 
     // ============ Constructor ============
 
@@ -269,6 +270,12 @@ contract LendingPool is AccessControl, ReentrancyGuard {
 
         offer.isActive = false;
 
+        if (address(coSigningManager) != address(0)) {
+            try
+                coSigningManager.handleOfferCancelled(offerId, offer.creator)
+            {} catch {}
+        }
+
         // Remove from active lists
         if (offer.offerType == LoanType.LENDER_OFFER) {
             ActiveOfferLib.remove(activeLenderOffers, offerId);
@@ -284,24 +291,23 @@ contract LendingPool is AccessControl, ReentrancyGuard {
             );
         }
 
-        // ← NEW: cancel any active co-signing records for this offer so that
-        //   (a) the reputation bonus given to the borrower is reversed, and
-        //   (b) the co-signer's active count is decremented correctly.
-        if (address(coSigningManager) != address(0)) {
-            uint256[] memory recordIds = coSigningManager.getRecordsByOffer(
-                offerId
-            );
-            for (uint256 i = 0; i < recordIds.length; i++) {
-                CoSigningManager.CoSigningRecord
-                    memory record = coSigningManager.getCoSigningRecord(
-                        recordIds[i]
-                    );
-                if (record.isActive) {
-                    // cancelCoSigningRecord reverses the bonus and marks inactive
-                    coSigningManager.cancelCoSigningRecord(recordIds[i]);
-                }
-            }
-        }
+        // //   (a) the reputation bonus given to the borrower is reversed, and
+        // //   (b) the co-signer's active count is decremented correctly.
+        // if (address(coSigningManager) != address(0)) {
+        //     uint256[] memory recordIds = coSigningManager.getRecordsByOffer(
+        //         offerId
+        //     );
+        //     for (uint256 i = 0; i < recordIds.length; i++) {
+        //         CoSigningManager.CoSigningRecord
+        //             memory record = coSigningManager.getCoSigningRecord(
+        //                 recordIds[i]
+        //             );
+        //         if (record.isActive) {
+        //             // cancelCoSigningRecord reverses the bonus and marks inactive
+        //             coSigningManager.cancelCoSigningRecord(recordIds[i]);
+        //         }
+        //     }
+        // }
 
         emit LoanOfferCancelled(offerId, msg.sender);
     }
@@ -341,6 +347,13 @@ contract LendingPool is AccessControl, ReentrancyGuard {
             // Borrower created the request — msg.sender is the lender
             lender = msg.sender;
             borrower = offer.creator;
+
+            if (
+                address(coSigningManager) != address(0) &&
+                coSigningManager.isCoSignerForOffer(offerId, msg.sender)
+            ) {
+                revert LendingPool__CoSignerCannotBeLender();
+            }
 
             // Lender provides funds now
             IERC20(offer.terms.tokenAddress).safeTransferFrom(
@@ -527,15 +540,6 @@ contract LendingPool is AccessControl, ReentrancyGuard {
             loan.terms.principalAmount
         );
 
-        // Penalize co-signer if one exists
-        if (loan.hasCoSigner) {
-            reputationManager.penalizeCoSigner(
-                loan.coSigner,
-                loan.borrower,
-                loan.terms.principalAmount
-            );
-        }
-
         if (loan.hasCoSigner && address(coSigningManager) != address(0)) {
             uint256[] memory recordIds = coSigningManager.getLoanCoSigners(
                 loanId
@@ -707,11 +711,6 @@ contract LendingPool is AccessControl, ReentrancyGuard {
             loan.terms.principalAmount
         );
 
-        // Reward co-signer if one exists
-        if (loan.hasCoSigner) {
-            reputationManager.rewardCoSigner(loan.coSigner, loan.borrower);
-        }
-
         if (loan.hasCoSigner && address(coSigningManager) != address(0)) {
             // Find the record ID(s) for this loan
             uint256[] memory recordIds = coSigningManager.getLoanCoSigners(
@@ -761,23 +760,23 @@ contract LendingPool is AccessControl, ReentrancyGuard {
         }
     }
 
-    /**
-     * @notice Remove offer from active list
-     */
-    function _removeFromActiveList(
-        uint256 offerId,
-        LoanType offerType
-    ) internal {
-        uint256[] storage activeList = offerType == LoanType.LENDER_OFFER
-            ? activeLenderOffers
-            : activeBorrowerRequests;
+    // /**
+    //  * @notice Remove offer from active list
+    //  */
+    // function _removeFromActiveList(
+    //     uint256 offerId,
+    //     LoanType offerType
+    // ) internal {
+    //     uint256[] storage activeList = offerType == LoanType.LENDER_OFFER
+    //         ? activeLenderOffers
+    //         : activeBorrowerRequests;
 
-        for (uint256 i = 0; i < activeList.length; i++) {
-            if (activeList[i] == offerId) {
-                activeList[i] = activeList[activeList.length - 1];
-                activeList.pop();
-                break;
-            }
-        }
-    }
+    //     for (uint256 i = 0; i < activeList.length; i++) {
+    //         if (activeList[i] == offerId) {
+    //             activeList[i] = activeList[activeList.length - 1];
+    //             activeList.pop();
+    //             break;
+    //         }
+    //     }
+    // }
 }

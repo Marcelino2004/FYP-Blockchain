@@ -23,12 +23,26 @@ const DashboardPage = () => {
 
   // Calculate stats from loans
   const activeLoans = loans.filter(l => l.status === 'ACTIVE');
+
   const totalBorrowed = loans
-    .filter(l => l.borrower === account && l.status === 'ACTIVE')
-    .reduce((sum, l) => sum + parseFloat(l.terms.principalAmount || 0), 0);
+    .filter(l => 
+      l.borrower?.toLowerCase() === account?.toLowerCase() && 
+      (l.status === 'ACTIVE' || l.status === 'REPAID')
+    )
+    .reduce((sum, l) => {
+      const amount = parseFloat(String(l.terms?.principalAmount).split(' ')[0]) || 0;
+      return sum + amount;
+    }, 0);
+
   const totalLent = loans
-    .filter(l => l.lender === account && l.status === 'ACTIVE')
-    .reduce((sum, l) => sum + parseFloat(l.terms.principalAmount || 0), 0);
+    .filter(l => 
+      l.lender?.toLowerCase() === account?.toLowerCase() && 
+      (l.status === 'ACTIVE' || l.status === 'REPAID')
+    )
+    .reduce((sum, l) => {
+      const amount = parseFloat(String(l.terms?.principalAmount).split(' ')[0]) || 0;
+      return sum + amount;
+    }, 0);
 
   // Recent activity (mock for now)
   const recentActivity = [
@@ -102,7 +116,7 @@ const DashboardPage = () => {
         />
         <StatCard 
           title="Total Borrowed" 
-          value={formatCurrency(totalBorrowed, 4) + ' ETH'}
+          value={totalBorrowed.toFixed(4) + ' ETH'}
           loading={loansLoading}
           icon={
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -112,7 +126,7 @@ const DashboardPage = () => {
         />
         <StatCard 
           title="Total Lent" 
-          value={formatCurrency(totalLent, 4) + ' ETH'}
+          value={totalLent.toFixed(4) + ' ETH'}
           loading={loansLoading}
           icon={
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

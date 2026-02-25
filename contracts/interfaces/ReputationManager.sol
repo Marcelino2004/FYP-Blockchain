@@ -23,10 +23,10 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
     uint256 public constant STARTING_REPUTATION = 100;
 
     // Reputation weights (out of 100 for percentage)
-    uint256 public constant REPAYMENT_WEIGHT = 50; // 50% weight
-    uint256 public constant TRANSACTION_WEIGHT = 25; // 25% weight
-    uint256 public constant COSIGNING_WEIGHT = 15; // 15% weight
-    uint256 public constant WALLET_AGE_WEIGHT = 10; // 10% weight
+    uint256 public constant REPAYMENT_WEIGHT = 55; // was 50% weight
+    uint256 public constant TRANSACTION_WEIGHT = 30; // was 25% weight
+    //uint256 public constant COSIGNING_WEIGHT = 0; // was 15% weight
+    uint256 public constant WALLET_AGE_WEIGHT = 15; // was 10% weight
 
     // Decay parameters
     uint256 public constant DECAY_START_DAYS = 90; // Start decay after 90 days of inactivity
@@ -65,9 +65,10 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         uint256 lastReputationUpdate;
         bool emailVerified;
         bool phoneVerified;
-        uint256 coSigningBonus;
         uint256 reputationGainedToday;
         uint256 lastDailyResetTimestamp;
+        uint256 dailyScoreSnapshot; // score at the start of the current day
+        uint256 lastSnapshotTimestamp; // when the snapshot was taken
     }
 
     struct CoSigningHistory {
@@ -81,6 +82,8 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
     mapping(address => ReputationData) private reputationData;
     mapping(address => CoSigningHistory) private coSigningHistory;
     mapping(address => mapping(address => bool)) private hasInteracted; // For unique counterparties
+    mapping(address => mapping(uint256 => uint256))
+        public coSigningBonusByOffer;
 
     // ============ Events ============
 
@@ -207,16 +210,10 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         // Calculate reputation bonus based on loan amount
         uint256 bonus = _calculateRepaymentBonus(loanAmount);
 
-        // Check daily cap
-        _checkAndResetDailyCap(borrower);
-        if (
-            data.reputationGainedToday + bonus > MAX_REPUTATION_GAIN_PER_PERIOD
-        ) {
-            bonus = MAX_REPUTATION_GAIN_PER_PERIOD - data.reputationGainedToday;
-        }
-
         data.baseScore = _min(data.baseScore + bonus, MAX_REPUTATION);
         data.reputationGainedToday += bonus;
+
+        _checkDailyScoreCap(borrower, oldScore);
 
         uint256 newScore = _calculateReputationScore(borrower);
         emit ReputationUpdated(
@@ -321,7 +318,8 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
     function addCoSigningBonus(
         address borrower,
         address coSigner,
-        uint256 coSignerReputation
+        uint256 coSignerReputation,
+        uint256 loanOfferId
     ) external onlyRole(COSIGNING_ROLE) nonReentrant returns (uint256) {
         if (borrower == address(0) || coSigner == address(0)) {
             revert ReputationManager__InvalidAddress();
@@ -353,8 +351,8 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
                     data.reputationGainedToday;
             }
 
-            data.coSigningBonus = _min(
-                data.coSigningBonus + bonus,
+            coSigningBonusByOffer[borrower][loanOfferId] = _min(
+                coSigningBonusByOffer[borrower][loanOfferId] + bonus,
                 MAX_COSIGN_BONUS
             );
             data.reputationGainedToday += bonus;
@@ -367,50 +365,16 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
             history.totalActiveCoSigns++;
 
             uint256 newScore = _calculateReputationScore(borrower);
+
             emit ReputationUpdated(
                 borrower,
                 oldScore,
                 newScore,
-                "Co-signing bonus"
+                "Co-signing bonus pending"
             );
         }
 
         return bonus;
-    }
-
-    /**
-     * @notice Remove co-signing bonus when the underlying loan offer is cancelled
-     * @param borrower The address of the borrower whose bonus is being reversed
-     * @param bonusToRemove The exact bonus amount that was originally added
-     */
-    function removeCoSigningBonus(
-        address borrower,
-        uint256 bonusToRemove
-    ) external onlyRole(COSIGNING_ROLE) nonReentrant {
-        if (borrower == address(0)) revert ReputationManager__InvalidAddress();
-        if (bonusToRemove == 0) return;
-
-        _ensureInitialized(borrower);
-
-        ReputationData storage data = reputationData[borrower];
-        uint256 oldScore = _calculateReputationScore(borrower);
-
-        // Reduce coSigningBonus, floor at 0
-        if (data.coSigningBonus >= bonusToRemove) {
-            data.coSigningBonus -= bonusToRemove;
-        } else {
-            data.coSigningBonus = 0;
-        }
-
-        data.lastActivityTimestamp = block.timestamp;
-
-        uint256 newScore = _calculateReputationScore(borrower);
-        emit ReputationUpdated(
-            borrower,
-            oldScore,
-            newScore,
-            "Co-signing bonus reversed on cancellation"
-        );
     }
 
     /**
@@ -443,13 +407,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
             data.baseScore -= coSignerPenalty;
         } else {
             data.baseScore = MIN_REPUTATION;
-        }
-
-        // Reduce co-signing bonus
-        if (data.coSigningBonus > coSignerPenalty / 2) {
-            data.coSigningBonus -= coSignerPenalty / 2;
-        } else {
-            data.coSigningBonus = 0;
         }
 
         data.lastActivityTimestamp = block.timestamp;
@@ -495,16 +452,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         // Small reward for successful co-signing
         uint256 reward = 10;
 
-        // Check daily cap
-        _checkAndResetDailyCap(coSigner);
-        if (
-            data.reputationGainedToday + reward > MAX_REPUTATION_GAIN_PER_PERIOD
-        ) {
-            reward =
-                MAX_REPUTATION_GAIN_PER_PERIOD -
-                data.reputationGainedToday;
-        }
-
         data.baseScore = _min(data.baseScore + reward, MAX_REPUTATION);
         data.reputationGainedToday += reward;
         data.lastActivityTimestamp = block.timestamp;
@@ -514,6 +461,8 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         if (history.totalActiveCoSigns > 0) {
             history.totalActiveCoSigns--;
         }
+
+        _checkDailyScoreCap(coSigner, oldScore);
 
         uint256 newScore = _calculateReputationScore(coSigner);
         emit ReputationUpdated(
@@ -594,6 +543,13 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         return coSigningHistory[coSigner].coSignCount[borrower];
     }
 
+    function getOfferCoSigningBonus(
+        address borrower,
+        uint256 loanOfferId
+    ) external view returns (uint256) {
+        return coSigningBonusByOffer[borrower][loanOfferId];
+    }
+
     /**
      * @notice Check if diminishing returns apply
      * @param coSigner The co-signer address
@@ -627,45 +583,27 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         address user
     ) internal view returns (uint256) {
         ReputationData storage data = reputationData[user];
+        if (data.walletCreationTime == 0) return 0;
 
-        // If not initialized, return 0
-        if (data.walletCreationTime == 0) {
-            return 0;
-        }
+        uint256 score = data.baseScore; // coSigningBonus no longer added here
 
-        // Start with base score
-        uint256 score = data.baseScore;
-
-        // Add co-signing bonus
-        score += data.coSigningBonus;
-
-        // Calculate component scores
         uint256 repaymentScore = _calculateRepaymentScore(data);
         uint256 transactionScore = _calculateTransactionScore(data);
         uint256 walletAgeScore = _calculateWalletAgeScore(data);
 
-        // Apply weights
+        // REMOVE: data.coSigningBonus * COSIGNING_WEIGHT from weighted score
         uint256 weightedScore = (repaymentScore *
             REPAYMENT_WEIGHT +
             transactionScore *
             TRANSACTION_WEIGHT +
-            data.coSigningBonus *
-            COSIGNING_WEIGHT +
             walletAgeScore *
             WALLET_AGE_WEIGHT) / 100;
 
-        // Combine with base score
         score = (score + weightedScore) / 2;
 
-        // Apply decay
         uint256 decayAmount = _calculateDecay(data);
-        if (score > decayAmount) {
-            score -= decayAmount;
-        } else {
-            score = MIN_REPUTATION;
-        }
+        score = score > decayAmount ? score - decayAmount : MIN_REPUTATION;
 
-        // Ensure within bounds
         return _min(score, MAX_REPUTATION);
     }
 
@@ -838,17 +776,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
     }
 
     /**
-     * @notice Clear co-signing bonus from a borrower after the co-sign is released
-     * @param borrower The address of the borrower
-     */
-    function clearCoSigningBonus(
-        address borrower
-    ) external onlyRole(COSIGNING_ROLE) {
-        if (borrower == address(0)) revert ReputationManager__InvalidAddress();
-        reputationData[borrower].coSigningBonus = 0;
-    }
-
-    /**
      * @notice Decrement totalActiveCoSigns for a co-signer
      *         Called when a co-signing record is cancelled before loan completion
      */
@@ -861,6 +788,43 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         }
     }
 
+    function applyOfferCoSigningBonus(
+        address borrower,
+        uint256 loanOfferId
+    ) external onlyRole(COSIGNING_ROLE) nonReentrant returns (uint256) {
+        uint256 bonus = coSigningBonusByOffer[borrower][loanOfferId];
+        if (bonus == 0) return 0;
+
+        // Apply it to baseScore now that the loan is real
+        ReputationData storage data = reputationData[borrower];
+        uint256 oldScore = _calculateReputationScore(borrower);
+
+        data.baseScore = _min(data.baseScore + bonus, MAX_REPUTATION);
+
+        // Clear the offer-specific bonus so it can't be applied again
+        delete coSigningBonusByOffer[borrower][loanOfferId];
+
+        _checkDailyScoreCap(borrower, oldScore);
+
+        uint256 newScore = _calculateReputationScore(borrower);
+
+        emit ReputationUpdated(
+            borrower,
+            oldScore,
+            newScore,
+            "Co-signing bonus applied"
+        );
+
+        return bonus;
+    }
+
+    function clearOfferCoSigningBonus(
+        address borrower,
+        uint256 loanOfferId
+    ) external onlyRole(COSIGNING_ROLE) {
+        delete coSigningBonusByOffer[borrower][loanOfferId];
+    }
+
     /**
      * @notice Ensure user is initialized
      */
@@ -871,6 +835,8 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
             reputationData[user].lastActivityTimestamp = block.timestamp;
             reputationData[user].lastReputationUpdate = block.timestamp;
             reputationData[user].lastDailyResetTimestamp = block.timestamp;
+            reputationData[user].lastSnapshotTimestamp = block.timestamp;
+            reputationData[user].dailyScoreSnapshot = STARTING_REPUTATION;
         }
     }
 
@@ -891,5 +857,33 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
      */
     function _min(uint256 a, uint256 b) internal pure returns (uint256) {
         return a < b ? a : b;
+    }
+
+    function _checkDailyScoreCap(
+        address user,
+        uint256 scoreBeforeAction
+    ) internal {
+        ReputationData storage data = reputationData[user];
+
+        // Reset snapshot if it's a new day
+        if (block.timestamp >= data.lastSnapshotTimestamp + 1 days) {
+            data.dailyScoreSnapshot = scoreBeforeAction;
+            data.lastSnapshotTimestamp = block.timestamp;
+        }
+
+        // After updating baseScore/counters, check if final score exceeds cap
+        uint256 newScore = _calculateReputationScore(user);
+        uint256 allowedMax = data.dailyScoreSnapshot +
+            MAX_REPUTATION_GAIN_PER_PERIOD;
+
+        if (newScore > allowedMax) {
+            // Pull baseScore back down until score meets the cap
+            uint256 excess = newScore - allowedMax;
+            if (data.baseScore > excess) {
+                data.baseScore -= excess;
+            } else {
+                data.baseScore = 0;
+            }
+        }
     }
 }

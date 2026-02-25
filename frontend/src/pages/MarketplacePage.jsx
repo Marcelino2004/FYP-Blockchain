@@ -122,6 +122,8 @@ const CUSTOM_ERROR_SELECTORS = {
   '0x8f400791': 'Invalid interest rate — cannot exceed 50%.',
   '0x6f861db7': 'Offer not found.',
   '0xba5574da': 'Offer is no longer active.',
+  '0x21719c94': 'Co-signer cannot be lender on the same loan',
+  '0x00536a21': 'Only 1 co-signer request can be created for an offer at any time',
 };
 
 // Maps ABI-decoded custom error names to human-readable messages.
@@ -366,25 +368,35 @@ const OfferCard = ({ offer, onAccept, onCancel, currentAccount }) => {
 
   const [borrowerRep, setBorrowerRep] = useState(null);
   const [hasCosignerBoost, setHasCosignerBoost] = useState(false);
+  const [effectiveRep, setEffectiveRep] = useState(null);
 
   useEffect(() => {
-    if (isLenderOffer || !contracts?.reputationManager) return;
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const [score, data] = await Promise.all([
-          contracts.reputationManager.getReputationScore(offer.creator),
-          contracts.reputationManager.getReputationData(offer.creator),
-        ]);
-        if (!cancelled) {
-          setBorrowerRep(Number(score));
-          setHasCosignerBoost(Number(data.coSigningBonus) > 0);
-        }
-      } catch { /* fail silently */ }
-    };
-    load();
-    return () => { cancelled = true; };
-  }, [offer.creator, isLenderOffer, contracts]);
+  if (isLenderOffer || !contracts?.reputationManager) return;
+  let cancelled = false;
+
+  const load = async () => {
+    try {
+      const score = await contracts.reputationManager.getReputationScore(offer.creator);
+      const baseRep = Number(score);
+
+      // Check if this specific offer has a pending co-sign bonus
+      const pendingBonus = await contracts.reputationManager.coSigningBonusByOffer(
+        offer.creator,
+        offer.offerId
+      );
+      const bonus = Number(pendingBonus);
+
+      if (!cancelled) {
+        setBorrowerRep(baseRep);
+        setHasCosignerBoost(bonus > 0);
+        setEffectiveRep(bonus > 0 ? baseRep + bonus : baseRep); // ✅ boosted score
+      }
+    } catch { /* fail silently */ }
+  };
+
+  load();
+  return () => { cancelled = true; };
+}, [offer.creator, offer.offerId, isLenderOffer, contracts]);
 
   const repColor = (s) =>
     s >= 600 ? 'text-green-600' :
@@ -450,14 +462,21 @@ const OfferCard = ({ offer, onAccept, onCancel, currentAccount }) => {
           <div className="flex justify-between text-sm items-center">
             <span className="text-gray-600">Borrower Reputation</span>
             <div className="flex items-center gap-1.5">
-              {borrowerRep !== null ? (
+              {effectiveRep !== null ? (
                 <>
-                  <span className={`font-semibold ${repColor(borrowerRep)}`}>
-                    {borrowerRep}
-                  </span>
+                  {hasCosignerBoost ? (
+                    <span className={`font-semibold ${repColor(effectiveRep)}`}>
+                      {borrowerRep}
+                      <span className="text-purple-600"> + {effectiveRep - borrowerRep}</span>
+                    </span>
+                  ) : (
+                    <span className={`font-semibold ${repColor(borrowerRep)}`}>
+                      {borrowerRep}
+                    </span>
+                  )}
                   {hasCosignerBoost && (
                     <span
-                      title="Reputation boosted by a co-signer"
+                      title={`Base score: ${borrowerRep} + ${effectiveRep - borrowerRep} co-signing boost. Applied permanently when loan is matched.`}
                       className="inline-flex items-center gap-1 text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-medium"
                     >
                       🤝 Co-signed

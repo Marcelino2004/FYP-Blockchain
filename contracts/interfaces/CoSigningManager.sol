@@ -17,6 +17,8 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
     ReputationManager public immutable reputationManager;
     LendingPool public immutable lendingPool;
 
+    bytes32 public constant LENDING_POOL_ROLE = keccak256("LENDING_POOL_ROLE");
+
     // Counters
     uint256 public nextRequestId = 1;
     uint256 public nextRecordId = 1;
@@ -27,6 +29,9 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
     mapping(uint256 => uint256[]) public loanCoSigners; // loanId      => recordIds[]
     mapping(address => uint256[]) public userRequests; // borrower    => requestIds[]
     mapping(address => uint256[]) public userCoSignings; // coSigner    => recordIds[]
+    mapping(uint256 => address) public offerCoSigner;
+    mapping(uint256 => uint256) public offerToCoSignRecord;
+    mapping(uint256 => bool) public offerHasActiveRequest;
 
     // ← NEW: index accepted records by their originating loan offer so that
     //   LendingPool.cancelLoanOffer can find and reverse them.
@@ -55,6 +60,7 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         address coSigner;
         address borrower;
         uint256 loanId;
+        uint256 loanOfferId;
         uint256 reputationStaked;
         uint256 bonusProvided;
         uint256 coSignTimestamp;
@@ -129,6 +135,9 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
     error CoSigningManager__LoanNotFound();
     error CoSigningManager__InvalidBonus();
     error CoSigningManager__RecordAlreadyLinked();
+    error CoSigningManager__CoSignerCannotBeLender();
+    error CoSigningManager__RequestAlreadyExists();
+    error CoSigningManager__AlreadyCoSigned();
 
     // ============ Constructor ============
 
@@ -141,6 +150,7 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         lendingPool = LendingPool(_lendingPool);
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(LENDING_POOL_ROLE, _lendingPool);
     }
 
     // ============ External Functions - Request Management ============
@@ -165,6 +175,18 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         if (offer.creator == address(0))
             revert CoSigningManager__LoanNotFound();
 
+        // Only the offer creator can request co-signing for their own offer
+        if (offer.creator != msg.sender)
+            revert CoSigningManager__UnauthorizedCancellation();
+
+        // Block duplicate active requests for the same offer
+        if (offerHasActiveRequest[loanOfferId])
+            revert CoSigningManager__RequestAlreadyExists();
+
+        // Block if already co-signed (accepted)
+        if (offerCoSigner[loanOfferId] != address(0))
+            revert CoSigningManager__AlreadyCoSigned();
+
         requestId = nextRequestId++;
 
         coSigningRequests[requestId] = CoSigningRequest({
@@ -178,6 +200,7 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         });
 
         userRequests[msg.sender].push(requestId);
+        offerHasActiveRequest[loanOfferId] = true;
 
         emit CoSigningRequestCreated(
             requestId,
@@ -206,7 +229,8 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
             revert CoSigningManager__UnauthorizedCancellation();
 
         request.isActive = false;
-
+        delete offerCoSigner[request.loanOfferId];
+        offerHasActiveRequest[request.loanOfferId] = false;
         emit CoSigningRequestCancelled(requestId, msg.sender);
     }
 
@@ -237,7 +261,8 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         uint256 bonusProvided = reputationManager.addCoSigningBonus(
             request.borrower,
             msg.sender,
-            coSignerReputation
+            coSignerReputation,
+            request.loanOfferId
         );
 
         recordId = nextRecordId++;
@@ -246,7 +271,8 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
             recordId: recordId,
             coSigner: msg.sender,
             borrower: request.borrower,
-            loanId: 0, // linked to actual loan later via addCoSignerToLoan
+            loanId: 0,
+            loanOfferId: request.loanOfferId,
             reputationStaked: coSignerReputation,
             bonusProvided: bonusProvided,
             coSignTimestamp: block.timestamp,
@@ -258,9 +284,12 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
 
         userCoSignings[msg.sender].push(recordId);
 
-        // ← NEW: populate offerToRecords so LendingPool.cancelLoanOffer can
         //   look up this record by offer ID and reverse the bonus if needed.
         offerToRecords[request.loanOfferId].push(recordId);
+
+        offerCoSigner[request.loanOfferId] = msg.sender;
+
+        offerToCoSignRecord[request.loanOfferId] = recordId;
 
         // Deactivate the request — one co-signer per request
         request.isActive = false;
@@ -304,12 +333,10 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         record.wasCancelled = true;
 
         // Reverse the reputation bonus given to the borrower
-        if (record.bonusProvided > 0) {
-            reputationManager.removeCoSigningBonus(
-                record.borrower,
-                record.bonusProvided
-            );
-        }
+        reputationManager.clearOfferCoSigningBonus(
+            record.borrower,
+            record.loanOfferId
+        );
 
         // Decrement the co-signer's active co-sign count
         reputationManager.decrementActiveCoSigns(record.coSigner);
@@ -348,12 +375,20 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         if (loan.borrower != record.borrower)
             revert CoSigningManager__InvalidAddress();
 
+        if (loan.lender == record.coSigner)
+            revert CoSigningManager__CoSignerCannotBeLender();
+
         if (loanCoSigners[loanId].length >= MAX_COSIGNERS_PER_LOAN) {
             revert CoSigningManager__MaxCoSignersReached();
         }
 
         record.loanId = loanId;
         loanCoSigners[loanId].push(coSignRecordId);
+
+        reputationManager.applyOfferCoSigningBonus(
+            record.borrower,
+            record.loanOfferId
+        );
 
         emit CoSigningCompleted(
             coSignRecordId,
@@ -382,8 +417,11 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         record.isActive = false;
         record.loanCompleted = true;
 
-        // FIX: Always clear the borrower's co-signing bonus on release
-        reputationManager.clearCoSigningBonus(record.borrower);
+        // Clear the borrower's co-signing bonus on release
+        reputationManager.clearOfferCoSigningBonus(
+            record.borrower,
+            record.loanOfferId
+        );
 
         if (successfulRepayment) {
             reputationManager.rewardCoSigner(record.coSigner, record.borrower);
@@ -481,6 +519,31 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         } else {
             return (baseBonus * 10) / 100;
         }
+    }
+
+    function handleOfferCancelled(
+        uint256 loanOfferId,
+        address borrower
+    ) external onlyRole(LENDING_POOL_ROLE) {
+        reputationManager.clearOfferCoSigningBonus(borrower, loanOfferId);
+
+        uint256 recordId = offerToCoSignRecord[loanOfferId];
+        if (recordId != 0) {
+            CoSigningRecord storage record = coSigningRecords[recordId];
+            if (record.isActive) {
+                record.isActive = false;
+                reputationManager.decrementActiveCoSigns(record.coSigner);
+                emit CoSigningReleased(
+                    recordId,
+                    record.coSigner,
+                    borrower,
+                    false
+                );
+            }
+        }
+
+        delete offerCoSigner[loanOfferId];
+        delete offerToCoSignRecord[loanOfferId];
     }
 
     /**
@@ -608,7 +671,7 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
             } else if (record.loanCompleted) {
                 if (record.borrowerDefaulted) {
                     defaultedCoSignings++;
-                } else {
+                } else if (!record.wasCancelled) {
                     successfulCoSignings++;
                 }
             }
@@ -660,5 +723,12 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         uint256 loanId
     ) external view returns (uint256[] memory) {
         return loanCoSigners[loanId];
+    }
+
+    function isCoSignerForOffer(
+        uint256 loanOfferId,
+        address account
+    ) external view returns (bool) {
+        return offerCoSigner[loanOfferId] == account;
     }
 }

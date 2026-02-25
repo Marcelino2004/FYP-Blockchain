@@ -16,23 +16,22 @@ class ReputationService {
       totalTransactions: data.totalTransactions.toString(),
       uniqueCounterparties: data.uniqueCounterparties.toString(),
       totalValueTransferred: blockchainService.formatEther(
-        data.totalValueTransferred
+        data.totalValueTransferred,
       ),
       successfulRepayments: data.successfulRepayments.toString(),
       totalRepaymentValue: blockchainService.formatEther(
-        data.totalRepaymentValue
+        data.totalRepaymentValue,
       ),
       defaults: data.defaults.toString(),
       totalDefaultValue: blockchainService.formatEther(data.totalDefaultValue),
       walletCreationTime: new Date(
-        Number(data.walletCreationTime) * 1000
+        Number(data.walletCreationTime) * 1000,
       ).toISOString(),
       lastActivityTimestamp: new Date(
-        Number(data.lastActivityTimestamp) * 1000
+        Number(data.lastActivityTimestamp) * 1000,
       ).toISOString(),
       emailVerified: data.emailVerified,
       phoneVerified: data.phoneVerified,
-      coSigningBonus: data.coSigningBonus.toString(),
     };
   }
 
