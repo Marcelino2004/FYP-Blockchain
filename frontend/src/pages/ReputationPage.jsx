@@ -368,6 +368,10 @@ const ReputationPage = () => {
   const verifiedCount = (emailVerified ? 1 : 0) + (phoneVerified ? 1 : 0);
   const potentialBoost = (!emailVerified ? 30 : 0) + (!phoneVerified ? 70 : 0);
 
+  const MAX_DAILY_GAIN = 50;
+  const remainingCap = parseInt(reputation.remainingDailyCap ?? MAX_DAILY_GAIN);
+  const gainedToday = parseInt(data.reputationGainedToday ?? 0);
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -384,6 +388,8 @@ const ReputationPage = () => {
             Your reputation score is calculated based on your transaction history,
             repayment behavior, and overall platform activity.
           </p>
+
+        <DailyCapBar gained={gainedToday/2} remaining={remainingCap} max={MAX_DAILY_GAIN} />
         </div>
       </Card>
 
@@ -620,5 +626,47 @@ const TipCard = ({ icon, title, description }) => (
     </div>
   </div>
 );
+
+const DailyCapBar = ({ gained, remaining, max }) => {
+  const usedPercent = Math.min((gained / max) * 100, 100);
+  const isFull = remaining === 0;
+  const isUntouched = gained === 0;
+
+  return (
+    <div className="mt-6 max-w-sm mx-auto text-left">
+      <div className="flex justify-between items-center mb-1.5">
+        <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+          Daily Reputation Cap
+        </span>
+        <span className={`text-xs font-semibold ${isFull ? 'text-orange-600' : 'text-gray-700'}`}>
+          {gained} / {max} pts used today
+        </span>
+      </div>
+
+      {/* Track */}
+      <div className="w-full h-2.5 bg-gray-200 rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-500 ${
+            isFull
+              ? 'bg-orange-400'
+              : usedPercent > 60
+              ? 'bg-yellow-400'
+              : 'bg-emerald-400'
+          }`}
+          style={{ width: `${usedPercent}%` }}
+        />
+      </div>
+
+      {/* Subtext */}
+      <p className="text-xs text-gray-400 mt-1.5 text-center">
+        {isFull
+          ? 'Cap reached — resets in next 24h window'
+          : isUntouched
+          ? `Up to +${max} pts available today`
+          : `+${remaining} pts remaining today`}
+      </p>
+    </div>
+  );
+};
 
 export default ReputationPage;

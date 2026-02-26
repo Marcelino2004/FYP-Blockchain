@@ -32,16 +32,24 @@ class ReputationService {
       ).toISOString(),
       emailVerified: data.emailVerified,
       phoneVerified: data.phoneVerified,
+      reputationGainedToday: data.reputationGainedToday.toString(),
     };
   }
 
   async getFullReputation(address) {
-    const [score, data] = await Promise.all([
+    const contract = blockchainService.getContract("reputationManager");
+    const [score, data, remainingDailyCap] = await Promise.all([
       this.getReputationScore(address),
       this.getReputationData(address),
+      contract.getRemainingDailyCap(address), // ← new
     ]);
 
-    return { address, score, data };
+    return {
+      address,
+      score,
+      data,
+      remainingDailyCap: remainingDailyCap.toString(), // ← new
+    };
   }
 }
 

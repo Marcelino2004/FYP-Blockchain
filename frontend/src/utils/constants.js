@@ -167,11 +167,12 @@ export const NAV_LINKS = [
 // ReputationManager ABI
 export const REPUTATION_MANAGER_ABI = [
   "function getReputationScore(address user) view returns (uint256)",
-  "function getReputationData(address user) view returns (tuple(uint256 baseScore, uint256 totalTransactions, uint256 uniqueCounterparties, uint256 totalValueTransferred, uint256 successfulRepayments, uint256 totalRepaymentValue, uint256 defaults, uint256 totalDefaultValue, uint256 walletCreationTime, uint256 lastActivityTimestamp, uint256 lastReputationUpdate, bool emailVerified, bool phoneVerified, uint256 reputationGainedToday, uint256 lastDailyResetTimestamp, uint256 dailyScoreSnapshot, uint256 lastSnapshotTimestamp))",
+  "function getReputationData(address user) view returns (tuple(uint256 baseScore, uint256 totalTransactions, uint256 uniqueCounterparties, uint256 totalValueTransferred, uint256 successfulRepayments, uint256 totalRepaymentValue, uint256 defaults, uint256 totalDefaultValue, uint256 walletCreationTime, uint256 lastActivityTimestamp, uint256 lastReputationUpdate, bool emailVerified, bool phoneVerified, uint256 reputationGainedToday, uint256 lastDailyResetTimestamp))",
   "function initializeReputation(address user)",
   "function meetsReputationRequirement(address user, uint256 minimumReputation) view returns (bool)",
   "function getOfferCoSigningBonus(address borrower, uint256 loanOfferId) view returns (uint256)",
   "function coSigningBonusByOffer(address borrower, uint256 loanOfferId) view returns (uint256)",
+  "function getRemainingDailyCap(address user) view returns (uint256)",
 ];
 
 // LendingPool ABI
