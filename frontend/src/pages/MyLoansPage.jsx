@@ -401,7 +401,7 @@ const RepayLoanModal = ({ isOpen, onClose, loan, onSuccess }) => {
         </div>
 
         <Alert variant="info">
-          💡 Repaying requires 2 transactions: approve token spending, then repay.
+          💡 Collateral can only be unlocked after full repayment is made 
           {hasCollateral && (
             <p className="mt-2 text-sm font-medium text-blue-800">
               🔒 After <strong>full</strong> repayment, a "Withdraw Collateral" button will appear on this loan card.

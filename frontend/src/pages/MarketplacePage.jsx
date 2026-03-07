@@ -775,9 +775,7 @@ const CreateOfferModal = ({ isOpen, onClose, onSuccess }) => {
 
         {!isLenderOffer && (
           <>
-            <Alert variant="info">
-              As a borrower, you choose what token to borrow and what token to use as collateral.
-            </Alert>
+          
             
             <Select
               label="Token You Want to Borrow"
@@ -791,12 +789,6 @@ const CreateOfferModal = ({ isOpen, onClose, onSuccess }) => {
               required
             />
           </>
-        )}
-
-        {isLenderOffer && (
-          <Alert variant="info">
-            You are offering to lend WETH. Borrowers will choose their collateral token when accepting.
-          </Alert>
         )}
 
         <Input

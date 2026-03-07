@@ -20,7 +20,7 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
     // Reputation score bounds
     uint256 public constant MIN_REPUTATION = 0;
     uint256 public constant MAX_REPUTATION = 1000;
-    uint256 public constant STARTING_REPUTATION = 150;
+    uint256 public constant STARTING_REPUTATION = 200;
 
     // Reputation weights (out of 100 for percentage)
     uint256 public constant REPAYMENT_WEIGHT = 20;
