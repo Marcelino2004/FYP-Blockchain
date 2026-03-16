@@ -64,7 +64,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         uint256 lastReputationUpdate;
         bool emailVerified;
         bool phoneVerified;
-        // Unified daily cap tracking (covers repayments, co-sign bonuses, co-signer rewards)
         uint256 reputationGainedToday;
         uint256 lastDailyResetTimestamp;
     }
@@ -598,13 +597,11 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         uint256 transactionScore = _calculateTransactionScore(data);
         uint256 walletAgeScore = _calculateWalletAgeScore(data);
 
-        // Weighted bonus from structural signals
         uint256 weightedBonus = (transactionScore *
             TRANSACTION_WEIGHT +
             walletAgeScore *
             WALLET_AGE_WEIGHT) / 80;
 
-        // Weighted drag from default history
         uint256 weightedPenalty = (defaultPenaltyScore * REPAYMENT_WEIGHT) /
             100;
 

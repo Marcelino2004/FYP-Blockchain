@@ -41,14 +41,14 @@ class ReputationService {
     const [score, data, remainingDailyCap] = await Promise.all([
       this.getReputationScore(address),
       this.getReputationData(address),
-      contract.getRemainingDailyCap(address), // ← new
+      contract.getRemainingDailyCap(address),
     ]);
 
     return {
       address,
       score,
       data,
-      remainingDailyCap: remainingDailyCap.toString(), // ← new
+      remainingDailyCap: remainingDailyCap.toString(),
     };
   }
 }

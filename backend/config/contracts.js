@@ -62,7 +62,7 @@ class ContractLoader {
       console.log(`🔑 Backend signer loaded: ${this.signer.address}`);
     } else {
       console.warn(
-        "⚠️  VERIFIER_PRIVATE_KEY not set — contracts loaded read-only.\n" +
+        "  VERIFIER_PRIVATE_KEY not set — contracts loaded read-only.\n" +
           "   Write calls (e.g. recordOffChainVerification) will fail.\n" +
           "   Add VERIFIER_PRIVATE_KEY to your .env file.",
       );

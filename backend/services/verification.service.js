@@ -354,7 +354,7 @@ class VerificationService {
     const tx = await contract.recordOffChainVerification(address, type);
     await tx.wait();
     console.log(
-      `✅ On-chain verification recorded: ${address} / ${type} (tx: ${tx.hash})`,
+      `On-chain verification recorded: ${address} / ${type} (tx: ${tx.hash})`,
     );
   }
 

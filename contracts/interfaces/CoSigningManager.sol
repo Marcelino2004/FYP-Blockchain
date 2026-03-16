@@ -468,7 +468,7 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         if (record.coSigner == address(0))
             revert CoSigningManager__RecordNotFound();
         if (!record.isActive) revert CoSigningManager__RecordNotActive();
-        if (record.loanId != 0) revert CoSigningManager__RecordAlreadyLinked(); // NEW ERROR
+        if (record.loanId != 0) revert CoSigningManager__RecordAlreadyLinked();
 
         record.loanId = loanId;
         loanCoSigners[loanId].push(recordId);

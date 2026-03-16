@@ -740,16 +740,11 @@ contract LendingPool is AccessControl, ReentrancyGuard {
             revert LendingPool__InvalidInterestRate();
 
         if (offerType == LoanType.LENDER_OFFER) {
-            // Lender sets the ratio as a requirement for the borrower.
-            // A ratio of 0 means uncollateralized; otherwise enforce the floor.
             if (
                 terms.collateralRatio != 0 &&
                 terms.collateralRatio < MIN_COLLATERAL_RATIO
             ) revert LendingPool__InvalidCollateralRatio();
         } else {
-            // Borrower request: they pre-deposit collateral themselves.
-            // If they specify an amount, the ratio must meet the floor.
-            // If no collateral, ratio must also be 0.
             if (terms.collateralAmount > 0) {
                 if (terms.collateralRatio < MIN_COLLATERAL_RATIO)
                     revert LendingPool__InvalidCollateralRatio();

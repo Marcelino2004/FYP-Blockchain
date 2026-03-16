@@ -262,8 +262,8 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\CoSigningManager.sol": {
-      "lastModificationDate": 1772001506576,
-      "contentHash": "541777eb60d92e51b9b65d2ad7812c1e",
+      "lastModificationDate": 1772961538041,
+      "contentHash": "c72b615e1be0321fe8212c6f7aec1c55",
       "sourceName": "contracts/interfaces/CoSigningManager.sol",
       "solcConfig": {
         "version": "0.8.20",
@@ -355,8 +355,8 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\LendingPool.sol": {
-      "lastModificationDate": 1771948139055,
-      "contentHash": "dfecd4ed61878d5c0c5572cbeac06710",
+      "lastModificationDate": 1772979449416,
+      "contentHash": "fc9bf2fa374d55c18f740a4d22c9acf7",
       "sourceName": "contracts/interfaces/LendingPool.sol",
       "solcConfig": {
         "version": "0.8.20",
@@ -456,8 +456,8 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\ReputationManager.sol": {
-      "lastModificationDate": 1772851262346,
-      "contentHash": "e158f21e6be81b691c11cb5306852c98",
+      "lastModificationDate": 1772898666198,
+      "contentHash": "9afece124172a0e742b12ec3a61bfa8c",
       "sourceName": "contracts/interfaces/ReputationManager.sol",
       "solcConfig": {
         "version": "0.8.20",
@@ -1497,7 +1497,7 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\LendingPoolLens.sol": {
-      "lastModificationDate": 1771862018703,
+      "lastModificationDate": 1772973121824,
       "contentHash": "e30fa94128565a1f36d391c751093eea",
       "sourceName": "contracts/interfaces/LendingPoolLens.sol",
       "solcConfig": {
