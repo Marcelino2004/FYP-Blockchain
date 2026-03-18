@@ -512,7 +512,6 @@ contract LendingPool is AccessControl, ReentrancyGuard {
      */
     function liquidateLoan(uint256 loanId) external nonReentrant {
         Loan storage loan = loans[loanId];
-        bool isOverdueAndGracePassed = block.timestamp > loan.dueTime;
 
         if (loan.status != LoanStatus.ACTIVE)
             revert LendingPool__LoanNotActive();
@@ -523,18 +522,22 @@ contract LendingPool is AccessControl, ReentrancyGuard {
         );
         uint256 unpaidAmount = amountDue - loan.amountRepaid;
 
+        bool isOverdueAndGracePassed = block.timestamp > loan.dueTime;
+
         bool isUndercollateralised = false;
-        try
-            collateralManager.isCollateralSufficient(
-                loanId,
-                unpaidAmount,
-                LIQUIDATION_THRESHOLD
-            )
-        returns (bool sufficient) {
-            isUndercollateralised = !sufficient;
-        } catch {
-            // Oracle unavailable — fall back to overdue check only
-            isUndercollateralised = false;
+        if (loan.collateralDepositId != 0) {
+            try
+                collateralManager.getTokenUSDValue(
+                    loan.terms.tokenAddress,
+                    unpaidAmount
+                )
+            returns (uint256 unpaidAmountUSD) {
+                try
+                    collateralManager.canLiquidate(loanId, unpaidAmountUSD)
+                returns (bool liquidatable) {
+                    isUndercollateralised = liquidatable;
+                } catch {}
+            } catch {}
         }
 
         if (!isOverdueAndGracePassed && !isUndercollateralised) {

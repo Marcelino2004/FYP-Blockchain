@@ -145,7 +145,7 @@ class ContractLoader {
     this.contracts.lendingPool = new ethers.Contract(
       addresses.lendingPool,
       lendingPoolArtifact.abi,
-      this.provider,
+      signerOrProvider,
     );
 
     // LendingPoolLens — read-only

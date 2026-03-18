@@ -16,6 +16,7 @@ const pricesRoutes = require("./routes/prices.routes");
 const statsRoutes = require("./routes/stats.routes");
 const verificationRoutes = require("./routes/verification.routes");
 const verificationService = require("./services/verification.service");
+const liquidationService = require("./services/liquidation.service");
 
 const app = express();
 
@@ -61,6 +62,8 @@ async function startServer() {
     console.log("🔗 Connecting to blockchain...");
     await blockchainService.initialize();
     console.log("✅ Blockchain connected\n");
+
+    liquidationService.start();
 
     // Check VERIFIER_ROLE for verification feature
     await verificationService.checkVerifierRole();
