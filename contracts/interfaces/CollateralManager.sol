@@ -649,6 +649,14 @@ contract CollateralManager is AccessControl, ReentrancyGuard {
         return supportedTokens[token];
     }
 
+    function getTokenUSDValue(
+        address token,
+        uint256 amount
+    ) external view returns (uint256) {
+        uint8 decimals = tokenDecimals[token];
+        return priceOracle.getTokenValueInUSD(token, amount, decimals);
+    }
+
     /**
      * @notice Get detailed collateral value information
      * @param token The token address

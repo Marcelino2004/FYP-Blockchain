@@ -192,6 +192,7 @@ export const LENDING_POOL_ABI = [
   "function nextLoanId() view returns (uint256)",
   "function nextOfferId() view returns (uint256)",
   "function setCoSigningManager(address _coSigningManager)",
+  "function liquidateLoan(uint256 loanId)",
 ];
 
 // LendingPoolLens ABI

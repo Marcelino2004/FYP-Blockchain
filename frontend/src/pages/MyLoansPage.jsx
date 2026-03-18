@@ -155,9 +155,51 @@ const MyLoansPage = () => {
 };
 
 const LoanCard = ({ loan, currentAccount, onRepay, onWithdrawSuccess }) => {
+  const { contracts } = useWeb3();                    // ← make sure contracts is destructured
+  const [liquidating, setLiquidating] = useState(false); // ← add this
+
   const isBorrower = loan.borrower.toLowerCase() === currentAccount?.toLowerCase();
+  const isLender = loan.lender.toLowerCase() === currentAccount?.toLowerCase();
   const isOverdue = loan.status === 'ACTIVE' && loan.isOverdue;
+  const hasCollateral = loan.collateralDepositId && String(loan.collateralDepositId) !== '0';
+
+  // Lender can liquidate if: overdue + past grace period (1 hour after lock)
+  // For simplicity we just expose the button when overdue — contract will revert
+  // with GracePeriodActive if it's too early, giving a clear error.
+  const canLiquidate = isLender && isOverdue;
+
+  const handleLiquidate = async () => {
+  setLiquidating(true);
+    try {
+      const loanData = await contracts.lendingPool.getLoan(loan.loanId);
+      console.log('collateralDepositId on chain:', loanData.collateralDepositId.toString());
+      console.log('collateralAmount in terms:', loanData.terms.collateralAmount.toString());
+      const tx = await contracts.lendingPool.liquidateLoan(loan.loanId);
+      await tx.wait();
+      onWithdrawSuccess();
+    } catch (err) {
+      console.error('Full liquidation error:', err);
+      
+      let msg = 'Liquidation failed';
+      if (err.message?.includes('GracePeriodActive')) {
+        msg = 'Grace period still active — wait 1 hour after loan lock time';
+      } else if (err.message?.includes('LoanNotOverdue')) {
+        msg = 'Loan is not overdue yet';
+      } else if (err.message?.includes('LoanNotActive')) {
+        msg = 'Loan is not active';
+      } else if (err.reason) {
+        msg = err.reason;
+      } else if (err.message) {
+        msg = err.message;
+      }
+      alert(msg);
+    } finally {
+      setLiquidating(false);
+    }
+  };
+
   
+
   const getStatusBadge = () => {
     const status = loan.status;
     if (status === 'ACTIVE' && isOverdue) {
@@ -254,6 +296,24 @@ const LoanCard = ({ loan, currentAccount, onRepay, onWithdrawSuccess }) => {
             </div>
           )}
 
+          {canLiquidate && (
+            <div className="flex flex-col gap-1">
+              <Button
+                variant="danger"
+                onClick={handleLiquidate}
+                loading={liquidating}
+                disabled={liquidating}
+              >
+                {liquidating ? 'Liquidating...' : '⚡ Liquidate Loan'}
+              </Button>
+              <p className="text-xs text-gray-500 text-center">
+                {hasCollateral
+                  ? 'Seize collateral to recover funds'
+                  : 'Mark default — no collateral to seize'}
+              </p>
+            </div>
+          )}
+
           {/* CollateralWithdrawButton self-hides when not relevant (status !== REPAID,
               no depositId, or already withdrawn) — no extra guard needed here */}
           {isBorrower && (
@@ -279,7 +339,7 @@ const RepayLoanModal = ({ isOpen, onClose, loan, onSuccess }) => {
   const remainingAmount = parseFloat(loan.remainingAmount || loan.amountDue);
   const maxRepayment = remainingAmount.toFixed(4);
   const isOverdue = loan.isOverdue;
-  const hasCollateral = loan.collateralDepositId && String(loan.collateralDepositId) !== '0';
+  const hasCollateral = parseFloat(loan.terms.collateralAmount) > 0;
 
   const handleRepay = async (e) => {
     e.preventDefault();

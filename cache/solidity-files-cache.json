@@ -212,8 +212,8 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\CollateralManager.sol": {
-      "lastModificationDate": 1773652621586,
-      "contentHash": "d50895eacbee26afa3e1621371ccf1fb",
+      "lastModificationDate": 1773819644849,
+      "contentHash": "09891695578e4e76b5b15e704e421141",
       "sourceName": "contracts/interfaces/CollateralManager.sol",
       "solcConfig": {
         "version": "0.8.20",
@@ -355,8 +355,8 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\LendingPool.sol": {
-      "lastModificationDate": 1773652111276,
-      "contentHash": "498ee1a9b33955362ba11f1f87579e17",
+      "lastModificationDate": 1773820451866,
+      "contentHash": "3945a2e2128f080911254af934858bad",
       "sourceName": "contracts/interfaces/LendingPool.sol",
       "solcConfig": {
         "version": "0.8.20",

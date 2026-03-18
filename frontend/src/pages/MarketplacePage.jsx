@@ -642,6 +642,26 @@ const CreateOfferModal = ({ isOpen, onClose, onSuccess }) => {
           collateralAmount
         );
         const depositReceipt = await depositTx.wait();
+        console.log('   ✅ Collateral deposited, receipt logs:', depositReceipt.logs.length);
+
+        const event = depositReceipt.logs.find(log => {
+          try {
+            const parsed = contracts.collateralManager.interface.parseLog(log);
+            return parsed?.name === 'CollateralDeposited';
+          } catch {
+            return false;
+          }
+        });
+
+        console.log('   CollateralDeposited event found:', !!event);
+
+        if (event) {
+          const parsed = contracts.collateralManager.interface.parseLog(event);
+          depositId = Number(parsed.args.depositId);
+          console.log('   📋 Deposit ID:', depositId);
+        } else {
+          console.warn('   ⚠️ CollateralDeposited event NOT found in logs');
+        }
         
         console.log('   📋 Extracting collateral deposit ID...');
         let foundDepositId = false;
@@ -974,36 +994,30 @@ const AcceptOfferModal = ({ isOpen, onClose, offer, onSuccess }) => {
           console.log('   📋 Predicted loanId:', predictedLoanId.toString());
 
           console.log('   🔒 Depositing collateral...');
+          
+          const nextDepositId = await contracts.collateralManager.nextDepositId();
+          depositId = Number(nextDepositId);
+          console.log('   📋 Predicted Deposit ID:', depositId);
+
           const depositTx = await contracts.collateralManager.depositCollateral(
             predictedLoanId,
             collateralTokenAddress,
             collateralAmount
           );
 
-          const depositReceipt = await depositTx.wait();
-          console.log('   ✅ Collateral deposited');
-
-          const event = depositReceipt.logs.find(log => {
-            try {
-              const parsed = contracts.collateralManager.interface.parseLog(log);
-              return parsed?.name === 'CollateralDeposited';
-            } catch {
-              return false;
-            }
-          });
-
-          if (event) {
-            const parsed = contracts.collateralManager.interface.parseLog(event);
-            depositId = Number(parsed.args.depositId);
-            console.log('   📋 Deposit ID:', depositId);
-          }
+          await depositTx.wait();
+          console.log('   ✅ Collateral deposited with ID:', depositId);
         }
 
+        console.log('📤 Accepting loan offer with deposit ID:', depositId);
+        console.log('   depositId type:', typeof depositId);
         console.log('   📤 Accepting loan offer with deposit ID:', depositId);
         const tx = await contracts.lendingPool.acceptLoanOffer(
           offer.offerId,
           depositId
         );
+
+        
 
         console.log('⏳ Waiting for confirmation...', tx.hash);
         const receipt = await tx.wait();

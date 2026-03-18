@@ -366,7 +366,7 @@ contract LendingPool is AccessControl, ReentrancyGuard {
         }
 
         // Verify and lock collateral
-        if (offer.terms.collateralAmount > 0) {
+        if (collateralDepositId != 0) {
             bool sufficient = collateralManager.isCollateralSufficient(
                 collateralDepositId,
                 offer.terms.principalAmount,
@@ -543,10 +543,14 @@ contract LendingPool is AccessControl, ReentrancyGuard {
 
         // Liquidate collateral
         uint256 recoveredAmount = 0;
-        if (loan.terms.collateralAmount > 0) {
+        if (loan.collateralDepositId != 0) {
+            uint256 unpaidAmountUSD = collateralManager.getTokenUSDValue(
+                loan.terms.tokenAddress,
+                unpaidAmount
+            );
             recoveredAmount = collateralManager.liquidateCollateral(
                 loanId,
-                unpaidAmount,
+                unpaidAmountUSD,
                 loan.lender,
                 isOverdueAndGracePassed
             );
