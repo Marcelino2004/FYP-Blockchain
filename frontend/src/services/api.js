@@ -38,6 +38,12 @@ class ApiService {
     return this.request(API_ENDPOINTS.reputation(address));
   }
 
+  async refreshReputation(address) {
+    return this.request(`/api/reputation/${address}/refresh`, {
+      method: "POST",
+    });
+  }
+
   // ============ Verification API ============
 
   async getVerificationStatus(address) {

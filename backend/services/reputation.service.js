@@ -36,8 +36,16 @@ class ReputationService {
     };
   }
 
+  async pingReputation(address) {
+    const contract = blockchainService.getContract("reputationManager");
+    const tx = await contract.touchReputation(address);
+    await tx.wait();
+  }
+
   async getFullReputation(address) {
     const contract = blockchainService.getContract("reputationManager");
+
+    // Read-only — no ping here
     const [score, data, remainingDailyCap] = await Promise.all([
       this.getReputationScore(address),
       this.getReputationData(address),

@@ -55,7 +55,6 @@ class LoansService {
     return this.formatLoan(loan, loanId, amountDue, isOverdue);
   }
 
-  // ✅ Helper to calculate amount due
   calculateAmountDue(loan) {
     const principal = loan.terms.principalAmount;
     const interestRate = loan.terms.interestRate;
@@ -183,12 +182,9 @@ class LoansService {
     };
   }
 
-  // ✅ FIXED: Handle the 5 return values correctly
   async getPlatformStats() {
     try {
       const lens = blockchainService.getContract("lendingPoolLens");
-
-      // getPlatformStats returns 5 values as an object
       const result = await lens.getPlatformStats();
 
       console.log("Platform stats result:", result);

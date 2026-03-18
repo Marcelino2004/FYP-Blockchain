@@ -780,7 +780,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
     ) internal returns (uint256) {
         ReputationData storage data = reputationData[user];
 
-        // Reset if 24h have elapsed since the last reset
         if (block.timestamp >= data.lastDailyResetTimestamp + 1 days) {
             data.reputationGainedToday = 0;
             data.lastDailyResetTimestamp = block.timestamp;
@@ -793,6 +792,14 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         uint256 remaining = MAX_REPUTATION_GAIN_PER_PERIOD -
             data.reputationGainedToday;
         return _min(requestedGain, remaining);
+    }
+
+    // Refresh state
+    function touchReputation(address user) external onlyRole(DATA_FEED_ROLE) {
+        if (user == address(0)) revert ReputationManager__InvalidAddress();
+        _ensureInitialized(user);
+        _clampToDailyCap(user, 0); // resets reputationGainedToday if 24h elapsed
+        reputationData[user].lastActivityTimestamp = block.timestamp;
     }
 
     /**

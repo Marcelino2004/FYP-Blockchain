@@ -396,7 +396,8 @@ contract CollateralManager is AccessControl, ReentrancyGuard {
     function liquidateCollateral(
         uint256 loanId,
         uint256 loanAmount,
-        address lender
+        address lender,
+        bool enforceGracePeriod
     )
         external
         onlyRole(LENDING_POOL_ROLE)
@@ -418,29 +419,59 @@ contract CollateralManager is AccessControl, ReentrancyGuard {
 
             // Check grace period
             if (
+                enforceGracePeriod &&
                 block.timestamp <
                 deposit.lockedTimestamp + LIQUIDATION_GRACE_PERIOD
             ) {
                 revert CollateralManager__GracePeriodActive();
             }
 
-            // Get collateral value
+            // Get collateral value in usd
             uint256 collateralValue = priceOracle.getTokenValueInUSD(
                 deposit.tokenAddress,
                 deposit.amount,
                 tokenDecimals[deposit.tokenAddress]
             );
 
-            // Apply liquidation penalty
-            uint256 penalty = supportedTokens[deposit.tokenAddress]
-                .liquidationPenalty;
-            uint256 valueAfterPenalty = (collateralValue *
-                (BASIS_POINTS - penalty)) / BASIS_POINTS;
+            // Calculate how much USD value the lender needs:
+            // unpaid amount + 5% liquidation bonus
+            uint256 lenderEntitlement = (loanAmount *
+                (BASIS_POINTS + LIQUIDATION_BONUS)) / BASIS_POINTS;
 
-            totalRecovered += valueAfterPenalty;
+            uint256 lenderTokenAmount;
+            uint256 borrowerTokenAmount;
 
-            // Transfer collateral to lender
-            IERC20(deposit.tokenAddress).safeTransfer(lender, deposit.amount);
+            if (collateralValue <= lenderEntitlement) {
+                // Collateral is not enough to cover full entitlement
+                // Lender gets everything
+                lenderTokenAmount = deposit.amount;
+                borrowerTokenAmount = 0;
+            } else {
+                // Collateral covers lender entitlement — return remainder to borrower
+                // lenderTokenAmount = deposit.amount * (lenderEntitlement / collateralValue)
+                lenderTokenAmount =
+                    (deposit.amount * lenderEntitlement) /
+                    collateralValue;
+                borrowerTokenAmount = deposit.amount - lenderTokenAmount;
+            }
+
+            totalRecovered +=
+                (lenderTokenAmount * collateralValue) /
+                deposit.amount;
+
+            // Transfer lender's portion
+            IERC20(deposit.tokenAddress).safeTransfer(
+                lender,
+                lenderTokenAmount
+            );
+
+            // Return remainder to borrower if any
+            if (borrowerTokenAmount > 0) {
+                IERC20(deposit.tokenAddress).safeTransfer(
+                    deposit.depositor,
+                    borrowerTokenAmount
+                );
+            }
 
             // Update state
             supportedTokens[deposit.tokenAddress].totalDeposited -= deposit
@@ -453,10 +484,9 @@ contract CollateralManager is AccessControl, ReentrancyGuard {
                 lender,
                 deposit.tokenAddress,
                 deposit.amount,
-                valueAfterPenalty
+                totalRecovered
             );
 
-            // Clear deposit
             delete deposits[depositIds[i]];
         }
 

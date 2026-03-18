@@ -212,8 +212,8 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\CollateralManager.sol": {
-      "lastModificationDate": 1767520218677,
-      "contentHash": "a49dbe25413a2a9239de0a0bbb577efa",
+      "lastModificationDate": 1773652621586,
+      "contentHash": "d50895eacbee26afa3e1621371ccf1fb",
       "sourceName": "contracts/interfaces/CollateralManager.sol",
       "solcConfig": {
         "version": "0.8.20",
@@ -355,8 +355,8 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\LendingPool.sol": {
-      "lastModificationDate": 1772979449416,
-      "contentHash": "fc9bf2fa374d55c18f740a4d22c9acf7",
+      "lastModificationDate": 1773652111276,
+      "contentHash": "498ee1a9b33955362ba11f1f87579e17",
       "sourceName": "contracts/interfaces/LendingPool.sol",
       "solcConfig": {
         "version": "0.8.20",
@@ -409,8 +409,8 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\PriceOracle.sol": {
-      "lastModificationDate": 1767520218689,
-      "contentHash": "c770c4bf6ad321832592828817a59f04",
+      "lastModificationDate": 1773734126674,
+      "contentHash": "82477f0777ff90b9b4ab3902791a23e3",
       "sourceName": "contracts/interfaces/PriceOracle.sol",
       "solcConfig": {
         "version": "0.8.20",
@@ -456,8 +456,8 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\ReputationManager.sol": {
-      "lastModificationDate": 1772898666198,
-      "contentHash": "9afece124172a0e742b12ec3a61bfa8c",
+      "lastModificationDate": 1773799697097,
+      "contentHash": "bd71315d4cf7240ba1b997d9bfaebc4d",
       "sourceName": "contracts/interfaces/ReputationManager.sol",
       "solcConfig": {
         "version": "0.8.20",

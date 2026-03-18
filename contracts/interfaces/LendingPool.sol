@@ -49,7 +49,8 @@ contract LendingPool is AccessControl, ReentrancyGuard {
     uint256 public constant MAX_LOAN_DURATION = 365 days;
     uint256 public constant MAX_INTEREST_RATE = 5000; // 50%
 
-    uint256 public constant MIN_COLLATERAL_RATIO = 12000;
+    uint256 public constant MIN_COLLATERAL_RATIO = 12000; //120%
+    uint256 public constant LIQUIDATION_THRESHOLD = 11000; //110%
 
     address public feeCollector;
 
@@ -179,6 +180,7 @@ contract LendingPool is AccessControl, ReentrancyGuard {
     error LendingPool__TransferFailed();
     error LendingPool__InvalidFeeRate();
     error LendingPool__CoSignerCannotBeLender();
+    error LendingPool__LoanNotLiquidatable();
 
     // ============ Constructor ============
 
@@ -510,11 +512,10 @@ contract LendingPool is AccessControl, ReentrancyGuard {
      */
     function liquidateLoan(uint256 loanId) external nonReentrant {
         Loan storage loan = loans[loanId];
+        bool isOverdueAndGracePassed = block.timestamp > loan.dueTime;
 
         if (loan.status != LoanStatus.ACTIVE)
             revert LendingPool__LoanNotActive();
-        if (block.timestamp <= loan.dueTime)
-            revert LendingPool__LoanNotOverdue();
 
         uint256 amountDue = LoanLogic.calculateAmountDue(
             loan.terms.principalAmount,
@@ -522,13 +523,32 @@ contract LendingPool is AccessControl, ReentrancyGuard {
         );
         uint256 unpaidAmount = amountDue - loan.amountRepaid;
 
+        bool isUndercollateralised = false;
+        try
+            collateralManager.isCollateralSufficient(
+                loanId,
+                unpaidAmount,
+                LIQUIDATION_THRESHOLD
+            )
+        returns (bool sufficient) {
+            isUndercollateralised = !sufficient;
+        } catch {
+            // Oracle unavailable — fall back to overdue check only
+            isUndercollateralised = false;
+        }
+
+        if (!isOverdueAndGracePassed && !isUndercollateralised) {
+            revert LendingPool__LoanNotLiquidatable();
+        }
+
         // Liquidate collateral
         uint256 recoveredAmount = 0;
         if (loan.terms.collateralAmount > 0) {
             recoveredAmount = collateralManager.liquidateCollateral(
                 loanId,
                 unpaidAmount,
-                loan.lender
+                loan.lender,
+                isOverdueAndGracePassed
             );
         }
 

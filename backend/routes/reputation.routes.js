@@ -13,4 +13,16 @@ router.get("/:address", validateAddress, async (req, res, next) => {
   }
 });
 
+// POST /api/reputation/:address/refresh
+router.post("/:address/refresh", validateAddress, async (req, res, next) => {
+  try {
+    const { address } = req.params;
+    await reputationService.pingReputation(address);
+    const reputation = await reputationService.getFullReputation(address);
+    res.json(reputation);
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;

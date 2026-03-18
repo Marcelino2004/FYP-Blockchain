@@ -128,6 +128,9 @@ async function main() {
 
   console.log("   ✅ Price feeds configured");
 
+  await priceOracle.setStalePriceThreshold(86400 * 365 * 100); // set to 100 years
+  console.log("   ✅ Stale price threshold set to very very long");
+
   // Grant roles
   const LENDING_POOL_ROLE_CM = await collateralManager.LENDING_POOL_ROLE();
   await collateralManager.grantRole(
@@ -179,6 +182,13 @@ async function main() {
   console.log(
     "   ✅ LENDING_POOL_ROLE granted to LendingPool on CoSigningManager",
   );
+
+  const DATA_FEED_ROLE = ethers.keccak256(ethers.toUtf8Bytes("DATA_FEED_ROLE"));
+  await reputationManager.grantRole(
+    DATA_FEED_ROLE,
+    "0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
+  );
+  console.log("✅ DATA_FEED_ROLE granted to backend signer");
 
   // Add collateral tokens
   await collateralManager.addSupportedToken(

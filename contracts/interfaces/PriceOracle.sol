@@ -269,7 +269,7 @@ contract PriceOracle is Ownable {
      * @param newThreshold New threshold in seconds
      */
     function setStalePriceThreshold(uint256 newThreshold) external onlyOwner {
-        if (newThreshold == 0 || newThreshold > 1 days) {
+        if (newThreshold <= 0) {
             revert PriceOracle__InvalidThreshold();
         }
 

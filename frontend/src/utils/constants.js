@@ -173,6 +173,7 @@ export const REPUTATION_MANAGER_ABI = [
   "function getOfferCoSigningBonus(address borrower, uint256 loanOfferId) view returns (uint256)",
   "function coSigningBonusByOffer(address borrower, uint256 loanOfferId) view returns (uint256)",
   "function getRemainingDailyCap(address user) view returns (uint256)",
+  "function touchReputation(address user)",
 ];
 
 // LendingPool ABI

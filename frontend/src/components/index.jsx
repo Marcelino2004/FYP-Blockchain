@@ -11,5 +11,3 @@ export { AddressDisplay } from './AddressDisplay';
 export { StatCard } from './StatCard';
 export { EmptyState } from './EmptyState';
 export { CollateralWithdrawButton } from './CollateralWithdrawButton';
-
-// Can import like this: import { Button, Card, Badge } from './components';
