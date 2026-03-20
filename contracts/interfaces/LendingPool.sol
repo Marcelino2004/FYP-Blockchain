@@ -722,7 +722,7 @@ contract LendingPool is AccessControl, ReentrancyGuard {
         loan.status = LoanStatus.REPAID;
 
         // Unlock collateral
-        if (loan.terms.collateralAmount > 0) {
+        if (loan.collateralDepositId != 0) {
             collateralManager.unlockCollateral(loan.collateralDepositId);
         }
 

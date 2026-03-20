@@ -1,14 +1,13 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-// Helper: increase EVM time and mine a block
+// Fast forward
 async function increaseTime(seconds) {
   await ethers.provider.send("evm_increaseTime", [seconds]);
   await ethers.provider.send("evm_mine", []);
 }
 
-// Helper: update MockV3Aggregator answer so its updatedAt = current block timestamp
-// This prevents PriceOracle__StalePrice when time has been advanced
+// Refreshes price
 async function refreshPrice(mockAggregator, price) {
   await mockAggregator.updateAnswer(price);
 }
@@ -669,7 +668,7 @@ describe("CollateralManager", function () {
 
       await collateralManager
         .connect(lendingPool)
-        .liquidateCollateral(loanId, loanAmount, lendingPool.address);
+        .liquidateCollateral(loanId, loanAmount, lendingPool.address, false);
 
       const lenderBalAfter = await mockToken.balanceOf(lendingPool.address);
       expect(lenderBalAfter).to.be.gt(lenderBalBefore);
@@ -688,6 +687,7 @@ describe("CollateralManager", function () {
             loanId,
             ethers.parseEther("1"),
             lendingPool.address,
+            false,
           ),
       ).to.emit(collateralManager, "CollateralLiquidated");
     });
@@ -704,6 +704,7 @@ describe("CollateralManager", function () {
             loanId,
             ethers.parseEther("1"),
             lendingPool.address,
+            true,
           ),
       ).to.be.revertedWithCustomError(
         collateralManager,
@@ -723,6 +724,7 @@ describe("CollateralManager", function () {
             loanId,
             ethers.parseEther("1"),
             ethers.ZeroAddress,
+            false,
           ),
       ).to.be.revertedWithCustomError(
         collateralManager,
@@ -738,6 +740,7 @@ describe("CollateralManager", function () {
             999,
             ethers.parseEther("1"),
             lendingPool.address,
+            false,
           ),
       ).to.be.revertedWithCustomError(
         collateralManager,
@@ -757,6 +760,7 @@ describe("CollateralManager", function () {
           loanId,
           ethers.parseEther("1"),
           lendingPool.address,
+          false,
         );
 
       const deposits = await collateralManager.getLoanCollateral(loanId);
@@ -776,6 +780,7 @@ describe("CollateralManager", function () {
           loanId,
           ethers.parseEther("1"),
           lendingPool.address,
+          false,
         );
 
       const info = await collateralManager.getTokenInfo(
@@ -793,7 +798,12 @@ describe("CollateralManager", function () {
       await expect(
         collateralManager
           .connect(user2)
-          .liquidateCollateral(loanId, ethers.parseEther("1"), user2.address),
+          .liquidateCollateral(
+            loanId,
+            ethers.parseEther("1"),
+            user2.address,
+            false,
+          ),
       ).to.be.reverted;
     });
   });

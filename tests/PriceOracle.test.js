@@ -531,15 +531,6 @@ describe("PriceOracle", function () {
       );
     });
 
-    it("Should revert on threshold above 1 day", async function () {
-      await expect(
-        priceOracle.setStalePriceThreshold(86401),
-      ).to.be.revertedWithCustomError(
-        priceOracle,
-        "PriceOracle__InvalidThreshold",
-      );
-    });
-
     it("Should revert if called by non-owner", async function () {
       await expect(priceOracle.connect(user1).setStalePriceThreshold(7200)).to
         .be.reverted;

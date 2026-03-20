@@ -278,6 +278,8 @@ const LoanCard = ({ loan, currentAccount, onRepay, onWithdrawSuccess }) => {
               </div>
             </div>
           )}
+
+
         </div>
 
         {/* Right-hand action column */}

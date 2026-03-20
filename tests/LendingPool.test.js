@@ -931,7 +931,7 @@ describe("LendingPool", function () {
         lendingPool.connect(other).liquidateLoan(loanId),
       ).to.be.revertedWithCustomError(
         lendingPool,
-        "LendingPool__LoanNotOverdue",
+        "LendingPool__LoanNotLiquidatable", // ← new error name
       );
     });
   });

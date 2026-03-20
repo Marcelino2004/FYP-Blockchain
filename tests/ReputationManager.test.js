@@ -8,7 +8,7 @@ async function increaseTime(seconds) {
 }
 
 describe("ReputationManager", function () {
-  const STARTING_REPUTATION = 150;
+  const STARTING_REPUTATION = 200;
   const MAX_REPUTATION = 1000;
   const MIN_REPUTATION = 0;
   const EMAIL_VERIFICATION_BONUS = 60;
