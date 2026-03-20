@@ -71,6 +71,7 @@ LOG_FORMAT=combined
 CACHE_ENABLED=false
 CACHE_TTL=60
 ```
+Can refer to .env.example for the format. Do note that these private keys are from the hardhat node accounts so they are safe.
 
 Create a `.env` file inside the **`frontend/`** folder:
 ```env
@@ -87,6 +88,7 @@ VITE_COSIGNING_MANAGER=0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e
 
 VITE_RPC_URL=http://localhost:8545
 ```
+Do note that these private keys are from the hardhat node accounts so they are safe
 
 ---
 
