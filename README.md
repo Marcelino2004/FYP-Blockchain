@@ -1,7 +1,8 @@
-# RepProtocol: Building On-Chain Credit Through Reputation-Based Decentralized Lending
+# RepChain - Decentralized Reputation Lending Platform
 
 A peer-to-peer lending platform powered by on-chain reputation scores, collateral management, and co-signing.
 
+---
 ## Main Contracts:
 
 1. LendingPool - Manages all the lending and borrowing
@@ -15,26 +16,6 @@ A peer-to-peer lending platform powered by on-chain reputation scores, collatera
 5. PriceOracle - Wrapper contract for price feeds
 
 This project is to be run locally in a hardhat node environment.
-
-How to run:
-1) (in a new terminal) yarn hardhat node 
-2) (in a new terminal) yarn hardhat run scripts/deploy-local.js --network localhost
-3) yarn hardhat run scripts/grant-verifier-role.js --network localhost
-4) (in a new terminal) cd backend -> yarn run nodemon backend/server.js
-5) (in a new terminal) cd frontend -> yarn run dev
-
-To add mock tokens for local deployment:
-
-1. Got to metamask and choose import account -> private key
-2. Choose any of the first 10 accounts in hardhat node's private key to import
-3. Connect to the localhost network
-4. Import mock tokens WETH, WBTC, USDC (find address from deploy-local terminal)
-
-
-# RepChain - Decentralized Reputation Lending Platform
-
-A peer-to-peer lending platform powered by on-chain reputation scores, collateral management, and co-signing.
-
 ---
 
 ## Prerequisites
@@ -111,11 +92,11 @@ VITE_RPC_URL=http://localhost:8545
 
 ## Running the Project Locally
 
-You will need **6 separate terminals** open at the root of the project.
+You will need **4 separate terminals** open at the root of the project.
 
 ### Terminal 1 — Start Hardhat Node
 ```bash
-yarn node:start
+yarn hardhat node
 ```
 Wait until you see the list of accounts and the message:
 ```
@@ -126,15 +107,15 @@ Started HTTP and WebSocket JSON-RPC server at http://127.0.0.1:8545/
 
 ### Terminal 2 — Deploy Contracts
 ```bash
-yarn deploy:local
+yarn hardhat run scripts/deploy-local.js --network localhost
 ```
 Wait until deployment completes. The contract addresses printed should match those already in `frontend/.env`.
 
 ---
 
-### Terminal 3 — Grant Verifier Role
+### Terminal 2 — Grant Verifier Role
 ```bash
-npx hardhat run scripts/grant-verifier-role.js --network localhost
+yarn hardhat run scripts/grant-verifier-role.js --network localhost
 ```
 You should see:
 ```
@@ -143,17 +124,18 @@ You should see:
 
 ---
 
-### Terminal 4 — Mint Test Tokens
+### Terminal 2 — Mint Test Tokens
 ```bash
-npx hardhat run scripts/mint-tokens.js --network localhost
+yarn hardhat run scripts/mint-tokens.js --network localhost
 ```
 This mints WETH, USDC, and WBTC to the first 10 Hardhat accounts.
 
 ---
 
-### Terminal 5 — Start Backend
+### Terminal 3 — Start Backend
 ```bash
-yarn backend:dev
+cd backend
+yarn run nodemon backend/server.js 
 ```
 Wait until you see:
 ```
@@ -162,10 +144,10 @@ Wait until you see:
 
 ---
 
-### Terminal 6 — Start Frontend
+### Terminal 4 — Start Frontend
 ```bash
 cd frontend
-yarn dev
+yarn run dev
 ```
 Open your browser at [http://localhost:5173](http://localhost:5173).
 
