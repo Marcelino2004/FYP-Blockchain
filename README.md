@@ -119,15 +119,6 @@ Wait until deployment completes. The contract addresses printed should match tho
 ```bash
 yarn hardhat run scripts/grant-verifier-role.js --network localhost
 ```
-
----
-
-### Terminal 2 — Mint Test Tokens
-```bash
-yarn hardhat run scripts/mint-tokens.js --network localhost
-```
-This mints WETH, USDC, and WBTC to the first 10 Hardhat accounts.
-
 ---
 
 ### Terminal 3 — Start Backend
@@ -186,15 +177,3 @@ In MetaMask, go to **Assets → Import Tokens** and add each token:
 - **Every time you restart the Hardhat node**, you must re-run Terminals 2, 3, and 4 — the chain resets completely on restart.
 - **If MetaMask shows a nonce error** after a chain reset, go to **Settings → Advanced → Clear activity and nonce data**.
 - The `VERIFIER_PRIVATE_KEY` in `.env` corresponds to Hardhat's default **account[1]** — this is the backend signer used to write on-chain verification records.
-
----
-
-## Available Scripts
-
-| Command | Description |
-|---|---|
-| `yarn node:start` | Start local Hardhat node |
-| `yarn deploy:local` | Deploy contracts to local network |
-| `yarn backend:dev` | Start backend server with hot reload |
-| `yarn backend:start` | Start backend server (no hot reload) |
-| `cd frontend && yarn dev` | Start frontend dev server |
