@@ -1,5 +1,7 @@
 # RepProtocol: Building On-Chain Credit Through Reputation-Based Decentralized Lending
 
+## RepProtocol: Building On-Chain Credit Through Reputation-Based Decentralized Lending
+
 Objective:
 
 1. Deposite collateral (using ETH/WETH)
