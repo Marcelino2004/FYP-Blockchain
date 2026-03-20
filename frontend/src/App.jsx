@@ -11,7 +11,6 @@ import MarketplacePage from './pages/MarketplacePage';
 import MyLoansPage from './pages/MyLoansPage';
 import ReputationPage from './pages/ReputationPage';
 import CoSigningPage from './pages/CoSigningPage';
-import TestPage from './pages/TestPage';
 
 console.log('🔧 CONTRACT_ADDRESSES from constants.js:', JSON.stringify(CONTRACT_ADDRESSES, null, 2));
 console.log('🔧 Environment variables:', JSON.stringify({

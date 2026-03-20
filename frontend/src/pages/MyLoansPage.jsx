@@ -290,7 +290,7 @@ const LoanCard = ({ loan, currentAccount, onRepay, onWithdrawSuccess }) => {
                 variant={isOverdue ? 'danger' : 'primary'}
                 onClick={() => onRepay(loan)}
               >
-                {isOverdue ? '⚠️ Repay Now (Overdue)' : '💰 Make Repayment'}
+                {isOverdue ? 'Repay Now (Overdue)' : 'Make Repayment'}
               </Button>
               <p className="text-xs text-gray-500 text-center">
                 Remaining: {loan.remainingAmount} ETH
@@ -306,7 +306,7 @@ const LoanCard = ({ loan, currentAccount, onRepay, onWithdrawSuccess }) => {
                 loading={liquidating}
                 disabled={liquidating}
               >
-                {liquidating ? 'Liquidating...' : '⚡ Liquidate Loan'}
+                {liquidating ? 'Liquidating...' : ' Liquidate Loan'}
               </Button>
               <p className="text-xs text-gray-500 text-center">
                 {hasCollateral
@@ -360,27 +360,27 @@ const RepayLoanModal = ({ isOpen, onClose, loan, onSuccess }) => {
       const repaymentAmount = ethers.parseEther(amount);
       const tokenAddress = loan.terms.tokenAddress;
 
-      console.log('💰 Repaying loan:', { loanId: loan.loanId, amount, tokenAddress });
+      console.log('Repaying loan:', { loanId: loan.loanId, amount, tokenAddress });
 
-      console.log('1️⃣ Approving token spending...');
+      console.log('1️Approving token spending...');
       await approveToken(
         tokenAddress,
         await contracts.lendingPool.getAddress(),
         repaymentAmount
       );
-      console.log('   ✅ Token approved');
+      console.log('   Token approved');
 
-      console.log('2️⃣ Repaying loan...');
+      console.log('2️Repaying loan...');
       const tx = await contracts.lendingPool.repayLoan(loan.loanId, repaymentAmount);
-      console.log('⏳ Waiting for confirmation...', tx.hash);
+      console.log('Waiting for confirmation...', tx.hash);
       const receipt = await tx.wait();
-      console.log('✅ Loan repayment successful!', receipt);
+      console.log('Loan repayment successful!', receipt);
 
       const isFullRepayment = parseFloat(amount) >= remainingAmount - 0.0001;
 
       if (isFullRepayment && hasCollateral) {
         alert(
-          `✅ Loan fully repaid!\n\n` +
+          `Loan fully repaid!\n\n` +
           `Your collateral has been unlocked. ` +
           `Click "Withdraw Collateral" on this loan card to reclaim it.`
         );
@@ -391,7 +391,7 @@ const RepayLoanModal = ({ isOpen, onClose, loan, onSuccess }) => {
       onSuccess();
       setLoading(false);
     } catch (err) {
-      console.error('❌ Error repaying loan:', err);
+      console.error('Error repaying loan:', err);
       
       let errorMessage = 'Failed to repay loan';
       if (err.message.includes('insufficient')) {
@@ -416,7 +416,7 @@ const RepayLoanModal = ({ isOpen, onClose, loan, onSuccess }) => {
 
         {isOverdue && (
           <Alert variant="warning">
-            ⚠️ This loan is overdue! Please repay as soon as possible to avoid penalties and potential liquidation.
+            This loan is overdue! Please repay as soon as possible to avoid penalties and potential liquidation.
           </Alert>
         )}
 
@@ -463,10 +463,10 @@ const RepayLoanModal = ({ isOpen, onClose, loan, onSuccess }) => {
         </div>
 
         <Alert variant="info">
-          💡 Collateral can only be unlocked after full repayment is made 
+          Collateral can only be unlocked after full repayment is made 
           {hasCollateral && (
             <p className="mt-2 text-sm font-medium text-blue-800">
-              🔒 After <strong>full</strong> repayment, a "Withdraw Collateral" button will appear on this loan card.
+              After <strong>full</strong> repayment, a "Withdraw Collateral" button will appear on this loan card.
             </p>
           )}
         </Alert>

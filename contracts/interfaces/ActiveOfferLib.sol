@@ -2,9 +2,7 @@
 pragma solidity ^0.8.20;
 
 library ActiveOfferLib {
-    /**
-     * @notice Remove an offerId from an active list (swap & pop)
-     */
+    //Remove an offerId from an active list (swap & pop)
     function remove(uint256[] storage list, uint256 offerId) internal {
         uint256 length = list.length;
 

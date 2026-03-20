@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\ActiveOfferLib.sol": {
-      "lastModificationDate": 1767520218670,
-      "contentHash": "412cbfda5fe6a81ff26832f1188f81c8",
+      "lastModificationDate": 1774012884312,
+      "contentHash": "2d2e3114b7c99b6696909ae05c520391",
       "sourceName": "contracts/interfaces/ActiveOfferLib.sol",
       "solcConfig": {
         "version": "0.8.20",
@@ -46,8 +46,8 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\LendingPool.sol": {
-      "lastModificationDate": 1774011481781,
-      "contentHash": "502680c592632f37a53921534dba9691",
+      "lastModificationDate": 1774013291851,
+      "contentHash": "c74af68764332a1ceec379862ee54120",
       "sourceName": "contracts/interfaces/LendingPool.sol",
       "solcConfig": {
         "version": "0.8.20",
@@ -100,8 +100,8 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\CollateralManager.sol": {
-      "lastModificationDate": 1773819644849,
-      "contentHash": "09891695578e4e76b5b15e704e421141",
+      "lastModificationDate": 1774013024470,
+      "contentHash": "4603d7c7af4f4c5293837ab071d99f87",
       "sourceName": "contracts/interfaces/CollateralManager.sol",
       "solcConfig": {
         "version": "0.8.20",
@@ -194,8 +194,8 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\CoSigningManager.sol": {
-      "lastModificationDate": 1772961538041,
-      "contentHash": "c72b615e1be0321fe8212c6f7aec1c55",
+      "lastModificationDate": 1774013171424,
+      "contentHash": "9a346f24d34af3942392f819bce5be2d",
       "sourceName": "contracts/interfaces/CoSigningManager.sol",
       "solcConfig": {
         "version": "0.8.20",
@@ -243,8 +243,8 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\ReputationManager.sol": {
-      "lastModificationDate": 1773799697097,
-      "contentHash": "bd71315d4cf7240ba1b997d9bfaebc4d",
+      "lastModificationDate": 1774013674366,
+      "contentHash": "be481790ee991e1922d2654589dee4b0",
       "sourceName": "contracts/interfaces/ReputationManager.sol",
       "solcConfig": {
         "version": "0.8.20",
@@ -475,8 +475,8 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\PriceOracle.sol": {
-      "lastModificationDate": 1773734126674,
-      "contentHash": "82477f0777ff90b9b4ab3902791a23e3",
+      "lastModificationDate": 1774013387759,
+      "contentHash": "8238daa9c25971d0a89f68d204114f20",
       "sourceName": "contracts/interfaces/PriceOracle.sol",
       "solcConfig": {
         "version": "0.8.20",

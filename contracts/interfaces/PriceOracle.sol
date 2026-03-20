@@ -4,11 +4,7 @@ pragma solidity ^0.8.20;
 import "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-/**
- * @title PriceOracle
- * @notice Wrapper contract for Chainlink price feeds
- * @dev Provides unified interface for getting token prices in USD
- */
+// Wrapper contract for price feeds
 contract PriceOracle is Ownable {
     // ============ State Variables ============
 
@@ -81,12 +77,6 @@ contract PriceOracle is Ownable {
 
     // ============ External Functions ============
 
-    /**
-     * @notice Set or update price feed for a token
-     * @param token The token address
-     * @param priceFeed The Chainlink price feed address
-     * @param tokenSymbol The token symbol (for events)
-     */
     function setPriceFeed(
         address token,
         address priceFeed,
@@ -119,10 +109,6 @@ contract PriceOracle is Ownable {
         emit PriceFeedUpdated(token, priceFeed, tokenSymbol);
     }
 
-    /**
-     * @notice Remove a price feed for a token
-     * @param token The token address
-     */
     function removePriceFeed(address token) external onlyOwner {
         if (!isSupportedToken[token]) revert PriceOracle__TokenNotSupported();
 
@@ -143,11 +129,6 @@ contract PriceOracle is Ownable {
         emit PriceFeedRemoved(token);
     }
 
-    /**
-     * @notice Get the latest price for a token in USD
-     * @param token The token address
-     * @return price The price in USD (18 decimals)
-     */
     function getPrice(address token) external view returns (uint256) {
         PriceData memory priceData = _getPriceData(token);
 
@@ -158,24 +139,13 @@ contract PriceOracle is Ownable {
         return priceData.price;
     }
 
-    /**
-     * @notice Get detailed price data for a token
-     * @param token The token address
-     * @return priceData Struct containing price, timestamp, and validity
-     */
     function getPriceData(
         address token
     ) external view returns (PriceData memory) {
         return _getPriceData(token);
     }
 
-    /**
-     * @notice Get token value in USD
-     * @param token The token address
-     * @param amount The token amount (in token's native decimals)
-     * @param tokenDecimals The token's decimal places
-     * @return valueInUSD The value in USD (18 decimals)
-     */
+    //Get token value in USD
     function getTokenValueInUSD(
         address token,
         uint256 amount,
@@ -196,13 +166,7 @@ contract PriceOracle is Ownable {
         return valueInUSD;
     }
 
-    /**
-     * @notice Get USD amount required for specific token amount
-     * @param token The token address
-     * @param usdAmount The USD amount desired (18 decimals)
-     * @param tokenDecimals The token's decimal places
-     * @return tokenAmount The token amount needed
-     */
+    // Get USD amount required for specific token amount
     function getTokenAmountForUSD(
         address token,
         uint256 usdAmount,
@@ -225,11 +189,6 @@ contract PriceOracle is Ownable {
         return tokenAmount;
     }
 
-    /**
-     * @notice Check if a price is stale
-     * @param token The token address
-     * @return isStale True if price is stale
-     */
     function isPriceStale(address token) external view returns (bool) {
         if (!isSupportedToken[token]) return true;
 
@@ -248,26 +207,14 @@ contract PriceOracle is Ownable {
         }
     }
 
-    /**
-     * @notice Get all supported tokens
-     * @return Array of supported token addresses
-     */
     function getSupportedTokens() external view returns (address[] memory) {
         return supportedTokens;
     }
 
-    /**
-     * @notice Get the number of supported tokens
-     * @return count The count of supported tokens
-     */
     function getSupportedTokenCount() external view returns (uint256) {
         return supportedTokens.length;
     }
 
-    /**
-     * @notice Update stale price threshold
-     * @param newThreshold New threshold in seconds
-     */
     function setStalePriceThreshold(uint256 newThreshold) external onlyOwner {
         if (newThreshold <= 0) {
             revert PriceOracle__InvalidThreshold();
@@ -279,11 +226,6 @@ contract PriceOracle is Ownable {
         emit StalePriceThresholdUpdated(oldThreshold, newThreshold);
     }
 
-    /**
-     * @notice Get price feed decimals for a token
-     * @param token The token address
-     * @return decimals The decimals of the price feed
-     */
     function getPriceFeedDecimals(address token) external view returns (uint8) {
         if (!isSupportedToken[token]) revert PriceOracle__TokenNotSupported();
 
@@ -291,11 +233,6 @@ contract PriceOracle is Ownable {
         return priceFeed.decimals();
     }
 
-    /**
-     * @notice Get price feed description for a token
-     * @param token The token address
-     * @return description The description of the price feed
-     */
     function getPriceFeedDescription(
         address token
     ) external view returns (string memory) {
@@ -307,11 +244,6 @@ contract PriceOracle is Ownable {
 
     // ============ Internal Functions ============
 
-    /**
-     * @notice Internal function to get price data with validation
-     * @param token The token address
-     * @return priceData Struct containing price information
-     */
     function _getPriceData(
         address token
     ) internal view returns (PriceData memory priceData) {
@@ -368,11 +300,6 @@ contract PriceOracle is Ownable {
         }
     }
 
-    /**
-     * @notice Check if price feed is responsive
-     * @param token The token address
-     * @return isResponsive True if price feed is working
-     */
     function _isPriceFeedResponsive(
         address token
     ) internal view returns (bool) {

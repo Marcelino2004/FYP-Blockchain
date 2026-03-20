@@ -1,5 +1,3 @@
-// Application constants, contract addresses, and ABIs
-
 // ============ Network Configuration ============
 export const NETWORK_CONFIG = {
   sepolia: {
@@ -38,9 +36,9 @@ export const CONTRACT_ADDRESSES = {
 
 // ============ Token Addresses ============
 export const TOKEN_ADDRESSES = {
-  WETH: "0x5FbDB2315678afecb367f032d93F642f64180aa3", //Sepolia: 0xE2b5bDE7e80f89975f7229d78aD9259b2723d11F
-  USDC: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512", //Sepolia: 0xC6c5Ab5039373b0CBa7d0116d9ba7fb9831C3f42
-  WBTC: "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0", //Sepolia: 0x4ea0Be853219be8C9cE27200Bdeee36881612FF2
+  WETH: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+  USDC: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+  WBTC: "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
 };
 
 // ============ API Configuration ============
@@ -255,9 +253,9 @@ export const ERC20_ABI = [
   "function transferFrom(address from, address to, uint256 amount) returns (bool)",
 ];
 
-// ============ usePlatformStats Hook (UPDATED) ============
+// ============ usePlatformStats Hook ============
 export const usePlatformStats = () => {
-  const { contracts } = useWeb3(); // ✅ Use contracts from Web3Context
+  const { contracts } = useWeb3(); // Use contracts from Web3Context
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -267,7 +265,7 @@ export const usePlatformStats = () => {
     setError(null);
 
     try {
-      // ✅ Try frontend-direct call first (faster)
+      // Try frontend-direct call first (faster)
       if (contracts.lendingPoolLens) {
         console.log("📊 Fetching platform stats from contract...");
         const result = await contracts.lendingPoolLens.getPlatformStats();
@@ -283,7 +281,7 @@ export const usePlatformStats = () => {
         console.log("✅ Platform stats:", statsData);
         setStats(statsData);
       } else {
-        // ✅ Fallback to API if contracts not loaded
+        // Fallback to API if contracts not loaded
         console.log("📊 Fetching platform stats from API...");
         const data = await api.getPlatformStats();
         setStats(data);
@@ -292,7 +290,7 @@ export const usePlatformStats = () => {
       console.error("Failed to fetch platform stats:", err);
       setError(err.message);
 
-      // ✅ Set default values on error
+      // Set default values on error
       setStats({
         totalLoans: "0",
         totalOffers: "0",

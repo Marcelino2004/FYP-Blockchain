@@ -4,11 +4,7 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-/**
- * @title ReputationManager
- * @notice Manages user reputation scores for decentralized lending platform
- * @dev Implements multi-factor reputation system with decay, anti-gaming, and co-signing
- */
+//Manages user reputation scores for decentralized lending platform
 contract ReputationManager is AccessControl, ReentrancyGuard {
     // ============ State Variables ============
 
@@ -134,25 +130,16 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
 
     // ============ External Functions ============
 
-    /**
-     * @notice Get the current reputation score for a user (with decay applied)
-     */
     function getReputationScore(address user) external view returns (uint256) {
         return _calculateReputationScore(user);
     }
 
-    /**
-     * @notice Get detailed reputation data for a user
-     */
     function getReputationData(
         address user
     ) external view returns (ReputationData memory) {
         return reputationData[user];
     }
 
-    /**
-     * @notice Initialize reputation for a new user
-     */
     function initializeReputation(
         address user
     ) external onlyRole(DATA_FEED_ROLE) {
@@ -176,10 +163,7 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         }
     }
 
-    /**
-     * @notice Record successful loan repayment and update reputation.
-     *         Gain is pre-clamped to remaining daily allowance before applying to baseScore.
-     */
+    //Record successful loan repayment and update reputation.
     function recordSuccessfulRepayment(
         address borrower,
         uint256 loanAmount
@@ -215,9 +199,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         );
     }
 
-    /**
-     * @notice Record loan default and apply penalty
-     */
     function recordDefault(
         address borrower,
         uint256 loanAmount
@@ -255,10 +236,7 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         );
     }
 
-    /**
-     * @notice Record off-chain verification (email/phone).
-     *         Verification bonuses are completely exempt from the daily cap.
-     */
+    //Record off-chain verification (email/phone).
     function recordOffChainVerification(
         address user,
         string calldata verificationType
@@ -294,11 +272,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         }
     }
 
-    /**
-     * @notice Add pending co-signing bonus for a borrower tied to a specific offer.
-     *         The daily cap is consumed now (at offer creation time), not at loan match time.
-     *         If the offer is later cancelled, the cap quota is NOT refunded to discourage gaming.
-     */
     function addCoSigningBonus(
         address borrower,
         address coSigner,
@@ -346,10 +319,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         return bonus;
     }
 
-    /**
-     * @notice Apply the stored co-signing bonus to borrower's baseScore when the loan is matched.
-     *         No additional daily cap check — cap was already consumed in addCoSigningBonus.
-     */
     function applyOfferCoSigningBonus(
         address borrower,
         uint256 loanOfferId
@@ -374,9 +343,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         return bonus;
     }
 
-    /**
-     * @notice Clear a pending co-signing bonus without applying it (e.g. offer cancelled).
-     */
     function clearOfferCoSigningBonus(
         address borrower,
         uint256 loanOfferId
@@ -384,9 +350,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         delete coSigningBonusByOffer[borrower][loanOfferId];
     }
 
-    /**
-     * @notice Apply penalty to co-signer when borrower defaults
-     */
     function penalizeCoSigner(
         address coSigner,
         address borrower,
@@ -432,10 +395,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         );
     }
 
-    /**
-     * @notice Reward co-signer when borrower repays successfully.
-     *         Reward is pre-clamped to remaining daily allowance before applying.
-     */
     function rewardCoSigner(
         address coSigner,
         address borrower
@@ -472,9 +431,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         );
     }
 
-    /**
-     * @notice Update on-chain transaction metrics for a user
-     */
     function updateOnChainMetrics(
         address user,
         uint256 txCount,
@@ -508,9 +464,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         );
     }
 
-    /**
-     * @notice Decrement totalActiveCoSigns for a co-signer (e.g. offer cancelled)
-     */
     function decrementActiveCoSigns(
         address coSigner
     ) external onlyRole(COSIGNING_ROLE) {
@@ -520,9 +473,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         }
     }
 
-    /**
-     * @notice Check if a user meets minimum reputation requirement
-     */
     function meetsReputationRequirement(
         address user,
         uint256 minimumReputation
@@ -530,9 +480,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         return _calculateReputationScore(user) >= minimumReputation;
     }
 
-    /**
-     * @notice Get co-signing count for a pair
-     */
     function getCoSignCount(
         address coSigner,
         address borrower
@@ -547,9 +494,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         return coSigningBonusByOffer[borrower][loanOfferId];
     }
 
-    /**
-     * @notice Check if diminishing returns apply for a co-signer/borrower pair
-     */
     function hasDiminishingReturns(
         address coSigner,
         address borrower
@@ -563,9 +507,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         return false;
     }
 
-    /**
-     * @notice View how much daily cap remains for a user right now
-     */
     function getRemainingDailyCap(
         address user
     ) external view returns (uint256) {
@@ -582,9 +523,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
 
     // ============ Internal Functions ============
 
-    /**
-     * @notice Calculate total reputation score with all factors
-     */
     function _calculateReputationScore(
         address user
     ) internal view returns (uint256) {
@@ -619,9 +557,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         return _min(score, MAX_REPUTATION);
     }
 
-    /**
-     * @notice Calculate repayment penalty component (defaults drag)
-     */
     function _calculateRepaymentScore(
         ReputationData storage data
     ) internal view returns (uint256) {
@@ -641,9 +576,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         return _min(defaultPenalty - mitigationScore, 300);
     }
 
-    /**
-     * @notice Calculate transaction activity score
-     */
     function _calculateTransactionScore(
         ReputationData storage data
     ) internal view returns (uint256) {
@@ -656,9 +588,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         return _min(((txScore + diversityScore + valueScore) * 2) / 3, 200);
     }
 
-    /**
-     * @notice Calculate wallet age score
-     */
     function _calculateWalletAgeScore(
         ReputationData storage data
     ) internal view returns (uint256) {
@@ -667,9 +596,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         return (ageDays * 100) / WALLET_AGE_CAP_DAYS;
     }
 
-    /**
-     * @notice Calculate reputation decay based on inactivity
-     */
     function _calculateDecay(
         ReputationData storage data
     ) internal view returns (uint256) {
@@ -689,9 +615,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         return (data.baseScore * decayPercentage) / 100;
     }
 
-    /**
-     * @notice Calculate repayment bonus based on loan size
-     */
     function _calculateRepaymentBonus(
         uint256 loanAmount
     ) internal pure returns (uint256) {
@@ -699,9 +622,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         return SUCCESSFUL_REPAYMENT_BASE + amountBonus;
     }
 
-    /**
-     * @notice Calculate default penalty
-     */
     function _calculateDefaultPenalty(
         uint256 loanAmount,
         uint256 totalRepaymentValue
@@ -723,9 +643,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         return basePenalty;
     }
 
-    /**
-     * @notice Calculate co-signing bonus with diminishing returns
-     */
     function _calculateCoSigningBonus(
         address borrower,
         address coSigner,
@@ -754,9 +671,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         return baseBonus;
     }
 
-    /**
-     * @notice Ensure user is initialized with default values
-     */
     function _ensureInitialized(address user) internal {
         if (reputationData[user].walletCreationTime == 0) {
             reputationData[user].baseScore = STARTING_REPUTATION;
@@ -767,13 +681,7 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         }
     }
 
-    /**
-     * @notice Reset the daily gain counter if a new 24h window has started,
-     *         then return how much of the requested gain can be applied within the cap.
-     * @param user The user address
-     * @param requestedGain The gain amount being attempted
-     * @return The clamped gain (0 if cap is already exhausted for today)
-     */
+    //Reset the daily gain counter if a new 24h window has started, then return how much of the requested gain can be applied within the cap.
     function _clampToDailyCap(
         address user,
         uint256 requestedGain
@@ -802,9 +710,7 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         reputationData[user].lastActivityTimestamp = block.timestamp;
     }
 
-    /**
-     * @notice Helper: minimum of two numbers
-     */
+    //Helper: minimum of two numbers
     function _min(uint256 a, uint256 b) internal pure returns (uint256) {
         return a < b ? a : b;
     }

@@ -6,11 +6,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./ReputationManager.sol";
 import "./LendingPool.sol";
 
-/**
- * @title CoSigningManager
- * @notice Manages co-signing relationships where trusted users can vouch for borrowers
- * @dev Integrates with ReputationManager and LendingPool for reputation staking
- */
+//Manages co-signing relationships where trusted users can vouch for borrowers
 contract CoSigningManager is AccessControl, ReentrancyGuard {
     // ============ State Variables ============
 
@@ -33,8 +29,6 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
     mapping(uint256 => uint256) public offerToCoSignRecord;
     mapping(uint256 => bool) public offerHasActiveRequest;
 
-    // ← NEW: index accepted records by their originating loan offer so that
-    //   LendingPool.cancelLoanOffer can find and reverse them.
     mapping(uint256 => uint256[]) public offerToRecords; // loanOfferId => recordIds[]
 
     // Co-signing limits
@@ -114,7 +108,6 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         uint256 rewardAmount
     );
 
-    // ← NEW
     event CoSigningRecordCancelled(
         uint256 indexed recordId,
         address indexed coSigner,
@@ -155,13 +148,6 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
 
     // ============ External Functions - Request Management ============
 
-    /**
-     * @notice Create a co-signing request for a loan offer
-     * @param loanOfferId The ID of the loan offer
-     * @param requestedBonus Stored for display only — has no on-chain effect
-     * @param message Optional message to potential co-signers
-     * @return requestId The ID of the created request
-     */
     function createCoSigningRequest(
         uint256 loanOfferId,
         uint256 requestedBonus,
@@ -213,12 +199,6 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         return requestId;
     }
 
-    /**
-     * @notice Cancel a co-signing REQUEST (before anyone has accepted it).
-     * @dev No reputation has been applied yet at this stage — no reversal needed.
-     *      Only the borrower who created the request can call this.
-     * @param requestId The ID of the request to cancel
-     */
     function cancelCoSigningRequest(uint256 requestId) external nonReentrant {
         CoSigningRequest storage request = coSigningRequests[requestId];
 
@@ -234,11 +214,6 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         emit CoSigningRequestCancelled(requestId, msg.sender);
     }
 
-    /**
-     * @notice Accept a co-signing request and stake reputation
-     * @param requestId The ID of the request to accept
-     * @return recordId The ID of the co-signing record
-     */
     function acceptCoSigningRequest(
         uint256 requestId
     ) external nonReentrant returns (uint256 recordId) {
@@ -305,14 +280,6 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         return recordId;
     }
 
-    /**
-     * @notice Cancel an active co-signing RECORD when the underlying loan offer
-     *         is cancelled by the borrower before a lender accepts it.
-     * @dev Reverses the reputation bonus given to the borrower and decrements
-     *      the co-signer's active count. Called by LendingPool (which holds
-     *      DEFAULT_ADMIN_ROLE) or directly by the borrower.
-     * @param recordId The ID of the co-signing record to cancel
-     */
     function cancelCoSigningRecord(uint256 recordId) external nonReentrant {
         CoSigningRecord storage record = coSigningRecords[recordId];
 
@@ -354,11 +321,6 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         );
     }
 
-    /**
-     * @notice Add co-signer to an active loan (called by borrower after loan is matched)
-     * @param loanId The ID of the matched loan
-     * @param coSignRecordId The ID of the co-signing record
-     */
     function addCoSignerToLoan(
         uint256 loanId,
         uint256 coSignRecordId
@@ -399,11 +361,7 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         );
     }
 
-    /**
-     * @notice Release co-signing after loan completion
-     * @param recordId The ID of the co-signing record
-     * @param successfulRepayment true = repaid, false = defaulted
-     */
+    //logic for either repayment or default
     function releaseCoSigning(
         uint256 recordId,
         bool successfulRepayment
@@ -454,11 +412,6 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         );
     }
 
-    /**
-     * @notice Link a co-signing record to a matched loan (called by LendingPool)
-     * @param recordId The co-signing record ID
-     * @param loanId The matched loan ID
-     */
     function linkRecordToLoan(
         uint256 recordId,
         uint256 loanId
@@ -484,19 +437,12 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
 
     // ============ View Functions ============
 
-    /**
-     * @notice Get all record IDs for a given loan offer.
-     * @dev Populated in acceptCoSigningRequest. Used by LendingPool.cancelLoanOffer.
-     */
     function getRecordsByOffer(
         uint256 loanOfferId
     ) external view returns (uint256[] memory) {
         return offerToRecords[loanOfferId];
     }
 
-    /**
-     * @notice Calculate co-signing bonus preview for a borrower/coSigner pair
-     */
     function calculateCoSigningBonus(
         address borrower,
         address coSigner
@@ -546,36 +492,26 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         delete offerToCoSignRecord[loanOfferId];
     }
 
-    /**
-     * @notice Get co-signing record details
-     */
     function getCoSigningRecord(
         uint256 recordId
     ) external view returns (CoSigningRecord memory) {
         return coSigningRecords[recordId];
     }
 
-    /**
-     * @notice Get co-signing request details
-     */
+    // get cosigning record given a requestId
     function getCoSigningRequest(
         uint256 requestId
     ) external view returns (CoSigningRequest memory) {
         return coSigningRequests[requestId];
     }
 
-    /**
-     * @notice Get all request IDs for a borrower
-     */
+    // get Ids of all request given a borrower address
     function getCoSigningRequests(
         address borrower
     ) external view returns (uint256[] memory) {
         return userRequests[borrower];
     }
 
-    /**
-     * @notice Get all active requests for a borrower as full structs
-     */
     function getActiveCoSigningRequests(
         address borrower
     ) external view returns (CoSigningRequest[] memory) {
@@ -600,18 +536,12 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         return activeRequests;
     }
 
-    /**
-     * @notice Get all record IDs for a co-signer
-     */
     function getUserCoSignings(
         address coSigner
     ) external view returns (uint256[] memory) {
         return userCoSignings[coSigner];
     }
 
-    /**
-     * @notice Get all active records for a user as full structs
-     */
     function getActiveCoSignings(
         address user
     ) external view returns (CoSigningRecord[] memory) {
@@ -636,9 +566,6 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         return activeRecords;
     }
 
-    /**
-     * @notice Check if diminishing returns apply for a pair
-     */
     function hasDiminishingReturns(
         address coSigner,
         address borrower
@@ -646,9 +573,6 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         return reputationManager.hasDiminishingReturns(coSigner, borrower);
     }
 
-    /**
-     * @notice Get co-signing statistics for a user
-     */
     function getCoSigningStats(
         address user
     )
@@ -685,9 +609,6 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         );
     }
 
-    /**
-     * @notice Get all open co-signing requests across all borrowers (for the discovery page)
-     */
     function getAllOpenRequests()
         external
         view
@@ -714,11 +635,6 @@ contract CoSigningManager is AccessControl, ReentrancyGuard {
         return openRequests;
     }
 
-    /**
-     * @notice Get all co-signing record IDs for a loan
-     * @param loanId The loan ID
-     * @return Array of co-signing record IDs
-     */
     function getLoanCoSigners(
         uint256 loanId
     ) external view returns (uint256[] memory) {

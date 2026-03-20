@@ -7,11 +7,7 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./PriceOracle.sol";
 
-/**
- * @title CollateralManager
- * @notice Manages collateral deposits, withdrawals, and liquidations for lending platform
- * @dev Integrates with PriceOracle for real-time collateral valuation
- */
+//Manages collateral deposits, withdrawals, and liquidations for lending platform
 contract CollateralManager is AccessControl, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -41,7 +37,7 @@ contract CollateralManager is AccessControl, ReentrancyGuard {
     uint256 public constant LIQUIDATION_BONUS = 500; // 5% bonus for liquidators
     uint256 public constant BASIS_POINTS = 10000; // 100%
 
-    // Grace period before liquidation (to give borrower time to add collateral)
+    // Grace period before liquidation (give borrowers extra time after loan overdue)
     uint256 public constant LIQUIDATION_GRACE_PERIOD = 1 hours;
 
     // ============ Structs ============
@@ -60,7 +56,7 @@ contract CollateralManager is AccessControl, ReentrancyGuard {
     struct TokenInfo {
         bool isSupported;
         uint256 maxDepositAmount; // Max amount that can be deposited
-        uint256 liquidationPenalty; // Penalty on liquidation (basis points)
+        uint256 liquidationPenalty; // Penalty on liquidation
         uint256 totalDeposited; // Total amount currently deposited
     }
 
@@ -159,13 +155,6 @@ contract CollateralManager is AccessControl, ReentrancyGuard {
 
     // ============ External Functions ============
 
-    /**
-     * @notice Add a supported collateral token
-     * @param token The token address
-     * @param decimals_ The token decimals
-     * @param maxDepositAmount Maximum deposit amount
-     * @param liquidationPenalty Liquidation penalty in basis points
-     */
     function addSupportedToken(
         address token,
         uint8 decimals_,
@@ -194,10 +183,6 @@ contract CollateralManager is AccessControl, ReentrancyGuard {
         emit TokenAdded(token, maxDepositAmount, liquidationPenalty);
     }
 
-    /**
-     * @notice Remove a supported token
-     * @param token The token address
-     */
     function removeSupportedToken(
         address token
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -226,12 +211,6 @@ contract CollateralManager is AccessControl, ReentrancyGuard {
         emit TokenRemoved(token);
     }
 
-    /**
-     * @notice Update token configuration
-     * @param token The token address
-     * @param maxDepositAmount New max deposit amount
-     * @param liquidationPenalty New liquidation penalty
-     */
     function updateTokenConfig(
         address token,
         uint256 maxDepositAmount,
@@ -247,13 +226,6 @@ contract CollateralManager is AccessControl, ReentrancyGuard {
         emit TokenConfigUpdated(token, maxDepositAmount, liquidationPenalty);
     }
 
-    /**
-     * @notice Deposit collateral for a loan
-     * @param loanId The ID of the loan
-     * @param tokenAddress The address of the collateral token
-     * @param amount The amount to deposit
-     * @return depositId The ID of the created deposit
-     */
     function depositCollateral(
         uint256 loanId,
         address tokenAddress,
@@ -308,10 +280,6 @@ contract CollateralManager is AccessControl, ReentrancyGuard {
         return depositId;
     }
 
-    /**
-     * @notice Withdraw unlocked collateral
-     * @param depositId The ID of the deposit to withdraw
-     */
     function withdrawCollateral(uint256 depositId) external nonReentrant {
         CollateralDeposit storage deposit = deposits[depositId];
 
@@ -335,11 +303,6 @@ contract CollateralManager is AccessControl, ReentrancyGuard {
         emit CollateralWithdrawn(depositId, depositor, token, amount);
     }
 
-    /**
-     * @notice Lock collateral when loan becomes active (called by LendingPool)
-     * @param depositId The ID of the deposit to lock
-     * @param loanId The ID of the loan
-     */
     function lockCollateral(
         uint256 depositId,
         uint256 loanId
@@ -363,10 +326,6 @@ contract CollateralManager is AccessControl, ReentrancyGuard {
         );
     }
 
-    /**
-     * @notice Unlock collateral after successful repayment (called by LendingPool)
-     * @param depositId The ID of the deposit to unlock
-     */
     function unlockCollateral(
         uint256 depositId
     ) external onlyRole(LENDING_POOL_ROLE) nonReentrant {
@@ -386,13 +345,6 @@ contract CollateralManager is AccessControl, ReentrancyGuard {
         );
     }
 
-    /**
-     * @notice Liquidate collateral for a defaulted loan
-     * @param loanId The ID of the defaulted loan
-     * @param loanAmount The outstanding loan amount in USD (18 decimals)
-     * @param lender The address of the lender to receive funds
-     * @return recoveredAmount The amount recovered from liquidation in USD
-     */
     function liquidateCollateral(
         uint256 loanId,
         uint256 loanAmount,
@@ -496,11 +448,6 @@ contract CollateralManager is AccessControl, ReentrancyGuard {
         return totalRecovered;
     }
 
-    /**
-     * @notice Get the USD value of collateral for a loan
-     * @param loanId The ID of the loan
-     * @return valueInUSD The total collateral value in USD (18 decimals)
-     */
     function getLoanCollateralValue(
         uint256 loanId
     ) external view returns (uint256 valueInUSD) {
@@ -523,22 +470,12 @@ contract CollateralManager is AccessControl, ReentrancyGuard {
         return totalValue;
     }
 
-    /**
-     * @notice Get collateral deposit details
-     * @param depositId The ID of the deposit
-     * @return deposit The collateral deposit struct
-     */
     function getCollateralDeposit(
         uint256 depositId
     ) external view returns (CollateralDeposit memory) {
         return deposits[depositId];
     }
 
-    /**
-     * @notice Get all collateral deposits for a loan
-     * @param loanId The ID of the loan
-     * @return loanDeposits Array of collateral deposits
-     */
     function getLoanCollateral(
         uint256 loanId
     ) external view returns (CollateralDeposit[] memory) {
@@ -554,11 +491,6 @@ contract CollateralManager is AccessControl, ReentrancyGuard {
         return loanDeposits;
     }
 
-    /**
-     * @notice Get all deposits for a user
-     * @param user The user address
-     * @return userDeposits Array of user's deposits
-     */
     function getUserDeposits(
         address user
     ) external view returns (CollateralDeposit[] memory) {
@@ -574,13 +506,6 @@ contract CollateralManager is AccessControl, ReentrancyGuard {
         return userDeposits;
     }
 
-    /**
-     * @notice Check if collateral is sufficient for a loan
-     * @param loanId The ID of the loan
-     * @param loanAmount The loan amount in USD (18 decimals)
-     * @param requiredRatio The required collateral ratio (basis points)
-     * @return isSufficient True if collateral is sufficient
-     */
     function isCollateralSufficient(
         uint256 loanId,
         uint256 loanAmount,
@@ -594,12 +519,6 @@ contract CollateralManager is AccessControl, ReentrancyGuard {
         return actualRatio >= requiredRatio;
     }
 
-    /**
-     * @notice Calculate health factor for a loan
-     * @param loanId The ID of the loan
-     * @param loanAmount The loan amount in USD (18 decimals)
-     * @return healthFactor The health factor (10000 = 100%)
-     */
     function calculateHealthFactor(
         uint256 loanId,
         uint256 loanAmount
@@ -612,12 +531,6 @@ contract CollateralManager is AccessControl, ReentrancyGuard {
         return healthFactor;
     }
 
-    /**
-     * @notice Check if a loan is eligible for liquidation
-     * @param loanId The ID of the loan
-     * @param loanAmount The loan amount in USD (18 decimals)
-     * @return canLiquidate True if loan can be liquidated
-     */
     function canLiquidate(
         uint256 loanId,
         uint256 loanAmount
@@ -630,19 +543,10 @@ contract CollateralManager is AccessControl, ReentrancyGuard {
         return healthFactor < LIQUIDATION_THRESHOLD;
     }
 
-    /**
-     * @notice Get all supported collateral tokens
-     * @return tokens Array of supported token addresses
-     */
     function getSupportedTokens() external view returns (address[] memory) {
         return supportedTokenList;
     }
 
-    /**
-     * @notice Get token information
-     * @param token The token address
-     * @return tokenInfo The token info struct
-     */
     function getTokenInfo(
         address token
     ) external view returns (TokenInfo memory) {
@@ -657,12 +561,6 @@ contract CollateralManager is AccessControl, ReentrancyGuard {
         return priceOracle.getTokenValueInUSD(token, amount, decimals);
     }
 
-    /**
-     * @notice Get detailed collateral value information
-     * @param token The token address
-     * @param amount The token amount
-     * @return collateralValue Struct with value details
-     */
     function getCollateralValueDetails(
         address token,
         uint256 amount

@@ -18,26 +18,22 @@ import { formatPercentage, formatCurrency } from '../utils/formatters';
 import { ethers } from 'ethers';
 import { TOKEN_ADDRESSES } from '../utils/constants';
 
-// ✅ Token price helper (mock prices - in production, fetch from PriceOracle contract)
 const TOKEN_PRICES = {
   WETH: 3000,  // $3000 per WETH
   USDC: 1,     // $1 per USDC
   WBTC: 100000 // $100,000 per WBTC
 };
 
-// ✅ Token metadata with decimals
 const TOKEN_INFO = {
   WETH: { decimals: 18, price: 3000 },
   USDC: { decimals: 6, price: 1 },
   WBTC: { decimals: 8, price: 100000 }
 };
 
-// ✅ Get token info helper
 const getTokenInfo = (tokenSymbol) => {
   return TOKEN_INFO[tokenSymbol] || { decimals: 18, price: 1 };
 };
 
-// ✅ Parse token amount with proper decimals
 const parseTokenAmount = (amount, tokenSymbol) => {
   const info = getTokenInfo(tokenSymbol);
   
@@ -67,12 +63,11 @@ const parseTokenAmount = (amount, tokenSymbol) => {
     }
     return ethers.parseEther(amountStr);
   } catch (error) {
-    console.error('❌ Error parsing token amount:', { amount, tokenSymbol, error });
+    console.error('Error parsing token amount:', { amount, tokenSymbol, error });
     return BigInt(0);
   }
 };
 
-// ✅ Format token amount to readable string with decimals
 const formatTokenAmount = (amount, tokenSymbol) => {
   if (!amount || amount === '0' || amount === 0) return '0.0000';
   
@@ -95,7 +90,7 @@ const formatTokenAmount = (amount, tokenSymbol) => {
   }
 };
 
-// ✅ Helper to calculate collateral amount accounting for price differences
+// Helper to calculate collateral amount accounting for price differences
 const calculateCollateralInToken = (principalAmount, principalToken, collateralToken, collateralRatio) => {
   if (!principalAmount || !collateralRatio) return '0';
   
@@ -109,9 +104,6 @@ const calculateCollateralInToken = (principalAmount, principalToken, collateralT
   return collateralAmount.toFixed(4);
 };
 
-// ─── Shared error parser ──────────────────────────────────────────────────────
-// Maps known 4-byte selectors to human-readable messages as a fallback when
-// ethers cannot decode the revert (e.g. ABI not loaded yet).
 const CUSTOM_ERROR_SELECTORS = {
   '0xd6938968': 'Invalid collateral ratio — ratio must be at least 120% if collateral is required, or exactly 0% for uncollateralized loans.',
   '0xc0b84ad1': 'Your reputation score does not meet the minimum requirement for this offer.',
@@ -141,17 +133,7 @@ const CUSTOM_ERROR_NAMES = {
   'LendingPool__InvalidRepaymentAmount': 'Invalid repayment amount.',
 };
 
-/**
- * Parses a contract error into a user-friendly string.
- * Strategy:
- *   1. Try interface.parseError() for full ABI-based decoding (most accurate).
- *   2. Fall back to the known 4-byte selector map.
- *   3. Fall back to err.reason / err.message string matching.
- *
- * @param {Error} err       - The caught error object
- * @param {Object} contract - An ethers Contract instance (for interface.parseError)
- * @param {string} fallback - Default message if nothing matches
- */
+
 const parseContractError = (err, contract = null, fallback = 'Transaction failed.') => {
   // Extract raw error data from wherever ethers v6 might put it
   const errorData = err.data
@@ -167,7 +149,6 @@ const parseContractError = (err, contract = null, fallback = 'Transaction failed
         return CUSTOM_ERROR_NAMES[decoded.name] ?? `Contract error: ${decoded.name}`;
       }
     } catch {
-      // parseError threw — move on to selector map
     }
   }
 
@@ -218,13 +199,13 @@ const MarketplacePage = () => {
     if (!contracts.lendingPool) return;
     
     try {
-      console.log('🚫 Cancelling offer:', offer.offerId);
+      console.log('Cancelling offer:', offer.offerId);
       const tx = await contracts.lendingPool.cancelLoanOffer(offer.offerId);
       await tx.wait();
-      console.log('✅ Offer cancelled');
+      console.log('Offer cancelled');
       refetch();
     } catch (err) {
-      console.error('❌ Error cancelling offer:', err);
+      console.error('Error cancelling offer:', err);
       alert('Failed to cancel offer: ' + parseContractError(err, contracts.lendingPool));
     }
   };
@@ -389,7 +370,7 @@ const OfferCard = ({ offer, onAccept, onCancel, currentAccount }) => {
       if (!cancelled) {
         setBorrowerRep(baseRep);
         setHasCosignerBoost(bonus > 0);
-        setEffectiveRep(bonus > 0 ? baseRep + bonus : baseRep); // ✅ boosted score
+        setEffectiveRep(bonus > 0 ? baseRep + bonus : baseRep); 
       }
     } catch { /* fail silently */ }
   };
@@ -598,7 +579,7 @@ const CreateOfferModal = ({ isOpen, onClose, onSuccess }) => {
           loanTerms.principalAmount
         );
         await approveTx.wait();
-        console.log('✅ Borrow token approved');
+        console.log('Borrow token approved');
       }
 
       if (offerType === 'BORROW_REQUEST') {
@@ -629,7 +610,7 @@ const CreateOfferModal = ({ isOpen, onClose, onSuccess }) => {
           collateralAmount
         );
         await approveTx.wait();
-        console.log('   ✅ Collateral approved');
+        console.log('   Collateral approved');
         
         console.log('   Reading nextDepositId to self-reference deposit...');
         const predictedDepositId = await contracts.collateralManager.nextDepositId();
@@ -642,7 +623,7 @@ const CreateOfferModal = ({ isOpen, onClose, onSuccess }) => {
           collateralAmount
         );
         const depositReceipt = await depositTx.wait();
-        console.log('   ✅ Collateral deposited, receipt logs:', depositReceipt.logs.length);
+        console.log('   Collateral deposited, receipt logs:', depositReceipt.logs.length);
 
         const event = depositReceipt.logs.find(log => {
           try {
@@ -658,12 +639,12 @@ const CreateOfferModal = ({ isOpen, onClose, onSuccess }) => {
         if (event) {
           const parsed = contracts.collateralManager.interface.parseLog(event);
           depositId = Number(parsed.args.depositId);
-          console.log('   📋 Deposit ID:', depositId);
+          console.log('   Deposit ID:', depositId);
         } else {
-          console.warn('   ⚠️ CollateralDeposited event NOT found in logs');
+          console.warn('   CollateralDeposited event NOT found in logs');
         }
         
-        console.log('   📋 Extracting collateral deposit ID...');
+        console.log('   Extracting collateral deposit ID...');
         let foundDepositId = false;
         
         const collateralManagerAddress = (await contracts.collateralManager.getAddress()).toLowerCase();
@@ -679,17 +660,17 @@ const CreateOfferModal = ({ isOpen, onClose, onSuccess }) => {
                 
                 if (parsed && parsed.name === 'CollateralDeposited') {
                   collateralDepositId = Number(parsed.args.depositId);
-                  console.log('   ✅ Method 1: Found depositId in event:', collateralDepositId);
+                  console.log('   Method 1: Found depositId in event:', collateralDepositId);
                   foundDepositId = true;
                   break;
                 }
               } catch (e) {
-                console.log('   ⚠️  Could not parse log:', e.message);
+                console.log('   Could not parse log:', e.message);
               }
             }
           }
         } catch (eventParseError) {
-          console.log('   ⚠️  Event parsing failed:', eventParseError.message);
+          console.log('   Event parsing failed:', eventParseError.message);
         }
         
         if (!foundDepositId) {
@@ -719,12 +700,12 @@ const CreateOfferModal = ({ isOpen, onClose, onSuccess }) => {
               
               if (matchingDeposit) {
                 collateralDepositId = Number(matchingDeposit.depositId);
-                console.log('   ✅ Method 2: Found depositId via query:', collateralDepositId);
+                console.log('   Method 2: Found depositId via query:', collateralDepositId);
                 foundDepositId = true;
               }
             }
           } catch (queryErr) {
-            console.error('   ❌ Query failed:', queryErr.message);
+            console.error('   Query failed:', queryErr.message);
           }
         }
         
@@ -733,15 +714,15 @@ const CreateOfferModal = ({ isOpen, onClose, onSuccess }) => {
         }
       }
 
-      console.log('📤 Sending transaction...');
+      console.log('Sending transaction...');
       const tx = await contracts.lendingPool.createLoanOffer(
         offerTypeValue,
         loanTerms
       );
       
-      console.log('⏳ Waiting for confirmation...', tx.hash);
+      console.log('Waiting for confirmation...', tx.hash);
       const receipt = await tx.wait();
-      console.log('✅ Transaction confirmed!', receipt);
+      console.log('Transaction confirmed!', receipt);
 
       if (offerType === 'BORROW_REQUEST' && collateralDepositId > 0) {
         const offerEvent = receipt.logs.find(log => {
@@ -762,14 +743,14 @@ const CreateOfferModal = ({ isOpen, onClose, onSuccess }) => {
           existing[offerId] = collateralDepositId;
           localStorage.setItem(storageKey, JSON.stringify(existing));
           
-          console.log(`✅ Stored deposit ID ${collateralDepositId} for offer ${offerId}`);
+          console.log(`Stored deposit ID ${collateralDepositId} for offer ${offerId}`);
         }
       }
 
       onSuccess();
       setLoading(false);
     } catch (err) {
-      console.error('❌ Error creating offer:', err);
+      console.error('Error creating offer:', err);
       setError(parseContractError(err, contracts?.lendingPool, 'Failed to create offer.'));
       setLoading(false);
     }
@@ -964,10 +945,10 @@ const AcceptOfferModal = ({ isOpen, onClose, offer, onSuccess }) => {
         throw new Error('Contracts not initialized. Please connect your wallet.');
       }
 
-      console.log('📝 Accepting offer:', offer.offerId);
+      console.log('Accepting offer:', offer.offerId);
 
       if (isLenderOffer) {
-        console.log('💼 Borrower accepting lender offer');
+        console.log('Borrower accepting lender offer');
 
         let depositId = 0;
 
@@ -975,7 +956,7 @@ const AcceptOfferModal = ({ isOpen, onClose, offer, onSuccess }) => {
           const collateralTokenAddress = TOKEN_ADDRESSES[selectedCollateralToken];
           const collateralAmount = parseTokenAmount(calculatedCollateral, selectedCollateralToken);
 
-          console.log('   💰 Approving collateral token...');
+          console.log('   Approving collateral token...');
           const tokenContract = new ethers.Contract(
             collateralTokenAddress,
             ['function approve(address spender, uint256 amount) returns (bool)'],
@@ -987,17 +968,17 @@ const AcceptOfferModal = ({ isOpen, onClose, offer, onSuccess }) => {
             collateralAmount
           );
           await approveTx.wait();
-          console.log('   ✅ Collateral approved');
+          console.log('   Collateral approved');
 
-          console.log('   🔢 Reading nextLoanId to predict loanId...');
+          console.log('   Reading nextLoanId to predict loanId...');
           const predictedLoanId = await contracts.lendingPool.nextLoanId();
-          console.log('   📋 Predicted loanId:', predictedLoanId.toString());
+          console.log('   Predicted loanId:', predictedLoanId.toString());
 
-          console.log('   🔒 Depositing collateral...');
+          console.log('   Depositing collateral...');
           
           const nextDepositId = await contracts.collateralManager.nextDepositId();
           depositId = Number(nextDepositId);
-          console.log('   📋 Predicted Deposit ID:', depositId);
+          console.log('   Predicted Deposit ID:', depositId);
 
           const depositTx = await contracts.collateralManager.depositCollateral(
             predictedLoanId,
@@ -1006,12 +987,12 @@ const AcceptOfferModal = ({ isOpen, onClose, offer, onSuccess }) => {
           );
 
           await depositTx.wait();
-          console.log('   ✅ Collateral deposited with ID:', depositId);
+          console.log('   Collateral deposited with ID:', depositId);
         }
 
-        console.log('📤 Accepting loan offer with deposit ID:', depositId);
+        console.log('Accepting loan offer with deposit ID:', depositId);
         console.log('   depositId type:', typeof depositId);
-        console.log('   📤 Accepting loan offer with deposit ID:', depositId);
+        console.log('   Accepting loan offer with deposit ID:', depositId);
         const tx = await contracts.lendingPool.acceptLoanOffer(
           offer.offerId,
           depositId
@@ -1019,11 +1000,11 @@ const AcceptOfferModal = ({ isOpen, onClose, offer, onSuccess }) => {
 
         
 
-        console.log('⏳ Waiting for confirmation...', tx.hash);
+        console.log('Waiting for confirmation...', tx.hash);
         const receipt = await tx.wait();
-        console.log('✅ Loan accepted!', receipt);
+        console.log('Loan accepted!', receipt);
       } else {
-        console.log('💰 Lender accepting borrow request');
+        console.log('Lender accepting borrow request');
 
         const borrowTokenSymbol = getTokenSymbol(offer.terms.tokenAddress);
         
@@ -1082,16 +1063,16 @@ const AcceptOfferModal = ({ isOpen, onClose, offer, onSuccess }) => {
           principalAmount
         );
         await approveTx.wait();
-        console.log('   ✅ Token approved');
+        console.log('   Token approved');
 
         const tx = await contracts.lendingPool.acceptLoanOffer(
           offer.offerId,
           borrowerDepositId
         );
 
-        console.log('⏳ Waiting for confirmation...', tx.hash);
+        console.log('Waiting for confirmation...', tx.hash);
         const receipt = await tx.wait();
-        console.log('✅ Loan accepted!', receipt);
+        console.log('Loan accepted!', receipt);
       }
 
       onSuccess();
@@ -1148,7 +1129,7 @@ const AcceptOfferModal = ({ isOpen, onClose, offer, onSuccess }) => {
         {isLenderOffer && needsCollateral && (
           <div className="p-4 bg-purple-50 rounded-lg border-2 border-purple-200">
             <label className="block text-sm font-semibold text-purple-900 mb-2">
-              🔒 Choose Your Collateral Token
+              Choose Your Collateral Token
             </label>
             
             <Select
@@ -1173,7 +1154,7 @@ const AcceptOfferModal = ({ isOpen, onClose, offer, onSuccess }) => {
             </div>
 
             <Alert variant="info" className="mt-3">
-              ✅ Collateral will be automatically deposited and locked when you accept this offer.
+              Collateral will be automatically deposited and locked when you accept this offer.
             </Alert>
           </div>
         )}

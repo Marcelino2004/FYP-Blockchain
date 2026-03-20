@@ -53,7 +53,7 @@ const CoSigningPage = () => {
       await tx.wait();
       refetch();
     } catch (err) {
-      console.error('❌ cancelCoSigningRequest:', err);
+      console.error('cancelCoSigningRequest:', err);
       alert(parseError(err));
     } finally {
       setCancellingId(null);
@@ -212,7 +212,7 @@ const RequestsList = ({ requests, currentAccount, onAccept, onCancel, cancelling
               {isOwn ? (
                 <div className="space-y-2">
                   <div className="w-full py-2 text-center text-sm text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-                    ⏳ Waiting for a co-signer to accept
+                    Waiting for a co-signer to accept
                   </div>
                   <Button
                     variant="danger"
@@ -372,7 +372,7 @@ const CreateRequestModal = ({ isOpen, onClose, currentAccount, onSuccess }) => {
     setTxHash('');
 
     try {
-      console.log('📝 createCoSigningRequest — offer', selectedOfferId);
+      console.log('createCoSigningRequest — offer', selectedOfferId);
       const tx = await contracts.coSigningManager.createCoSigningRequest(
         selectedOfferId,
         1,
@@ -380,10 +380,10 @@ const CreateRequestModal = ({ isOpen, onClose, currentAccount, onSuccess }) => {
       );
       setTxHash(tx.hash);
       await tx.wait();
-      console.log('✅ Request created');
+      console.log('Request created');
       setSuccess(true);
     } catch (err) {
-      console.error('❌ createCoSigningRequest:', err);
+      console.error('createCoSigningRequest:', err);
       setError(parseError(err));
     } finally {
       setLoading(false);
@@ -397,7 +397,7 @@ const CreateRequestModal = ({ isOpen, onClose, currentAccount, onSuccess }) => {
         {success ? (
           <>
             <Alert variant="success">
-              <p className="font-semibold">✅ Co-signing request created!</p>
+              <p className="font-semibold">Co-signing request created!</p>
               <p className="text-sm mt-1">
                 Your request is now visible to everyone on the Co-signing page.
                 Anyone with enough reputation can accept it.
@@ -573,10 +573,10 @@ const AcceptCoSignModal = ({ isOpen, onClose, request, onSuccess }) => {
       const tx = await contracts.coSigningManager.acceptCoSigningRequest(request.requestId);
       setTxHash(tx.hash);
       await tx.wait();
-      console.log('✅ Accepted');
+      console.log('Accepted');
       setSuccess(true);
     } catch (err) {
-      console.error('❌ acceptCoSigningRequest:', err);
+      console.error('acceptCoSigningRequest:', err);
       setError(parseError(err));
     } finally {
       setLoading(false);
@@ -590,7 +590,7 @@ const AcceptCoSignModal = ({ isOpen, onClose, request, onSuccess }) => {
         {success ? (
           <>
             <Alert variant="success">
-              <p className="font-semibold">✅ Co-signing accepted!</p>
+              <p className="font-semibold">Co-signing accepted!</p>
               <p className="text-sm mt-1">Your reputation is now staked. You'll earn a bonus when this borrower repays.</p>
               {txHash && <p className="text-xs font-mono mt-2 break-all">Tx: {txHash}</p>}
             </Alert>
@@ -602,7 +602,7 @@ const AcceptCoSignModal = ({ isOpen, onClose, request, onSuccess }) => {
 
             {!loading && (
               <Alert variant="warning">
-                <p className="font-semibold text-sm">⚠️ Your reputation is at stake</p>
+                <p className="font-semibold text-sm">Your reputation is at stake</p>
                 <p className="text-sm mt-1">
                   If this borrower defaults, you will receive a reputation penalty.
                   Only co-sign for people you trust.
