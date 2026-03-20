@@ -173,6 +173,22 @@ export const formatTxHash = (hash) => {
   return formatAddress(hash, 6);
 };
 
+export const getEtherscanAddressLink = (address, network = "sepolia") => {
+  const baseUrl =
+    network === "mainnet"
+      ? "https://etherscan.io"
+      : `https://${network}.etherscan.io`;
+  return `${baseUrl}/address/${address}`;
+};
+
+export const getEtherscanTxLink = (hash, network = "sepolia") => {
+  const baseUrl =
+    network === "mainnet"
+      ? "https://etherscan.io"
+      : `https://${network}.etherscan.io`;
+  return `${baseUrl}/tx/${hash}`;
+};
+
 // ============ Validation Helpers ============
 
 export const isValidAddress = (address) => {
