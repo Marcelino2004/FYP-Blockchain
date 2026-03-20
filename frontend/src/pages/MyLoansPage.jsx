@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useWeb3 } from '../context/Web3Context';
 import { useLoans } from '../hooks';
+import { ethers } from 'ethers';
 import { 
   Card, 
   Button, 
@@ -10,28 +11,28 @@ import {
   Modal,
   Input,
   Alert,
-  AddressDisplay
+  AddressDisplay,
+  CollateralWithdrawButton
 } from '../components';
-import { formatCurrency, formatTimeAgo, formatDate, isDatePast } from '../utils/formatters';
+import { formatCurrency, formatTimeAgo, formatDate } from '../utils/formatters';
 import { LOAN_STATUS_LABELS } from '../utils/constants';
 
 const MyLoansPage = () => {
-  const { account } = useWeb3();
+  const { account, contracts, approveToken } = useWeb3();
   const { loans, loading, refetch } = useLoans(account);
-  const [activeTab, setActiveTab] = useState('all'); // all, borrowed, lent
+  const [activeTab, setActiveTab] = useState('all');
   const [selectedLoan, setSelectedLoan] = useState(null);
   const [repayModalOpen, setRepayModalOpen] = useState(false);
 
-  // Filter loans based on active tab
   const getFilteredLoans = () => {
-    if (activeTab === 'borrowed') return loans.filter(l => l.borrower === account);
-    if (activeTab === 'lent') return loans.filter(l => l.lender === account);
+    if (activeTab === 'borrowed') return loans.filter(l => l.borrower.toLowerCase() === account?.toLowerCase());
+    if (activeTab === 'lent') return loans.filter(l => l.lender.toLowerCase() === account?.toLowerCase());
     return loans;
   };
 
   const filteredLoans = getFilteredLoans();
-  const borrowedLoans = loans.filter(l => l.borrower === account);
-  const lentLoans = loans.filter(l => l.lender === account);
+  const borrowedLoans = loans.filter(l => l.borrower.toLowerCase() === account?.toLowerCase());
+  const lentLoans = loans.filter(l => l.lender.toLowerCase() === account?.toLowerCase());
 
   const handleRepay = (loan) => {
     setSelectedLoan(loan);
@@ -50,13 +51,11 @@ const MyLoansPage = () => {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900 mb-2">My Loans</h1>
         <p className="text-gray-600">Manage your active and completed loans</p>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <div className="text-center">
@@ -78,7 +77,6 @@ const MyLoansPage = () => {
         </Card>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-2 border-b border-gray-200">
         <button
           onClick={() => setActiveTab('all')}
@@ -115,19 +113,19 @@ const MyLoansPage = () => {
         </button>
       </div>
 
-      {/* Loans List */}
       {loading ? (
         <div className="flex justify-center py-12">
           <LoadingSpinner size="lg" />
         </div>
       ) : filteredLoans.length > 0 ? (
         <div className="space-y-4">
-          {filteredLoans.map((loan) => (
+          {filteredLoans.map((loan, index) => (
             <LoanCard 
-              key={loan.loanId} 
+              key={`loan-${loan.loanId}-${index}`} 
               loan={loan}
               currentAccount={account}
               onRepay={handleRepay}
+              onWithdrawSuccess={() => setTimeout(refetch, 2000)}
             />
           ))}
         </div>
@@ -143,7 +141,6 @@ const MyLoansPage = () => {
         />
       )}
 
-      {/* Repay Modal */}
       <RepayLoanModal 
         isOpen={repayModalOpen}
         onClose={() => setRepayModalOpen(false)}
@@ -157,17 +154,57 @@ const MyLoansPage = () => {
   );
 };
 
-// Loan Card Component
-const LoanCard = ({ loan, currentAccount, onRepay }) => {
-  const isBorrower = loan.borrower === currentAccount;
+const LoanCard = ({ loan, currentAccount, onRepay, onWithdrawSuccess }) => {
+  const { contracts } = useWeb3();                    // ← make sure contracts is destructured
+  const [liquidating, setLiquidating] = useState(false); // ← add this
+
+  const isBorrower = loan.borrower.toLowerCase() === currentAccount?.toLowerCase();
+  const isLender = loan.lender.toLowerCase() === currentAccount?.toLowerCase();
   const isOverdue = loan.status === 'ACTIVE' && loan.isOverdue;
+  const hasCollateral = loan.collateralDepositId && String(loan.collateralDepositId) !== '0';
+
+  // Lender can liquidate if: overdue + past grace period (1 hour after lock)
+  // For simplicity we just expose the button when overdue — contract will revert
+  // with GracePeriodActive if it's too early, giving a clear error.
+  const canLiquidate = isLender && isOverdue;
+
+  const handleLiquidate = async () => {
+  setLiquidating(true);
+    try {
+      const loanData = await contracts.lendingPool.getLoan(loan.loanId);
+      console.log('collateralDepositId on chain:', loanData.collateralDepositId.toString());
+      console.log('collateralAmount in terms:', loanData.terms.collateralAmount.toString());
+      const tx = await contracts.lendingPool.liquidateLoan(loan.loanId);
+      await tx.wait();
+      onWithdrawSuccess();
+    } catch (err) {
+      console.error('Full liquidation error:', err);
+      
+      let msg = 'Liquidation failed';
+      if (err.message?.includes('GracePeriodActive')) {
+        msg = 'Grace period still active — wait 1 hour after loan lock time';
+      } else if (err.message?.includes('LoanNotOverdue')) {
+        msg = 'Loan is not overdue yet';
+      } else if (err.message?.includes('LoanNotActive')) {
+        msg = 'Loan is not active';
+      } else if (err.reason) {
+        msg = err.reason;
+      } else if (err.message) {
+        msg = err.message;
+      }
+      alert(msg);
+    } finally {
+      setLiquidating(false);
+    }
+  };
+
   
+
   const getStatusBadge = () => {
     const status = loan.status;
     if (status === 'ACTIVE' && isOverdue) {
-      return <Badge variant="danger">Overdue</Badge>;
+      return <Badge variant="danger">⚠️ Overdue</Badge>;
     }
-    
     const variants = {
       'PENDING': 'warning',
       'ACTIVE': 'info',
@@ -175,15 +212,15 @@ const LoanCard = ({ loan, currentAccount, onRepay }) => {
       'DEFAULTED': 'danger',
       'CANCELLED': 'default'
     };
-    
     return <Badge variant={variants[status] || 'default'}>{status}</Badge>;
   };
 
+  const needsRepayment = isBorrower && loan.status === 'ACTIVE' && parseFloat(loan.remainingAmount) > 0;
+
   return (
     <Card hover>
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
         <div className="flex-1 space-y-3">
-          {/* Header */}
           <div className="flex items-center gap-3 flex-wrap">
             <h3 className="text-lg font-semibold">Loan #{loan.loanId}</h3>
             {getStatusBadge()}
@@ -192,7 +229,6 @@ const LoanCard = ({ loan, currentAccount, onRepay }) => {
             </Badge>
           </div>
 
-          {/* Loan Details Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
               <p className="text-xs text-gray-500 mb-1">Principal</p>
@@ -212,7 +248,6 @@ const LoanCard = ({ loan, currentAccount, onRepay }) => {
             </div>
           </div>
 
-          {/* Additional Info */}
           <div className="flex flex-wrap gap-4 text-sm text-gray-600">
             <div className="flex items-center gap-2">
               <span>Counterparty:</span>
@@ -227,7 +262,6 @@ const LoanCard = ({ loan, currentAccount, onRepay }) => {
             </div>
           </div>
 
-          {/* Progress Bar for Active Loans */}
           {loan.status === 'ACTIVE' && (
             <div className="mt-2">
               <div className="flex justify-between text-xs text-gray-600 mb-1">
@@ -244,26 +278,60 @@ const LoanCard = ({ loan, currentAccount, onRepay }) => {
               </div>
             </div>
           )}
+
+
         </div>
 
-        {/* Actions */}
-        {loan.status === 'ACTIVE' && isBorrower && (
-          <div className="flex flex-col gap-2 lg:ml-4">
-            <Button 
-              variant={isOverdue ? 'danger' : 'primary'}
-              onClick={() => onRepay(loan)}
-            >
-              {isOverdue ? 'Repay Now (Overdue)' : 'Make Repayment'}
-            </Button>
-          </div>
-        )}
+        {/* Right-hand action column */}
+        <div className="flex flex-col gap-3 lg:ml-4 lg:min-w-[180px]">
+          {needsRepayment && (
+            <div className="flex flex-col gap-2">
+              <Button 
+                variant={isOverdue ? 'danger' : 'primary'}
+                onClick={() => onRepay(loan)}
+              >
+                {isOverdue ? 'Repay Now (Overdue)' : 'Make Repayment'}
+              </Button>
+              <p className="text-xs text-gray-500 text-center">
+                Remaining: {loan.remainingAmount} ETH
+              </p>
+            </div>
+          )}
+
+          {canLiquidate && (
+            <div className="flex flex-col gap-1">
+              <Button
+                variant="danger"
+                onClick={handleLiquidate}
+                loading={liquidating}
+                disabled={liquidating}
+              >
+                {liquidating ? 'Liquidating...' : ' Liquidate Loan'}
+              </Button>
+              <p className="text-xs text-gray-500 text-center">
+                {hasCollateral
+                  ? 'Seize collateral to recover funds'
+                  : 'Mark default — no collateral to seize'}
+              </p>
+            </div>
+          )}
+
+          {/* CollateralWithdrawButton self-hides when not relevant (status !== REPAID,
+              no depositId, or already withdrawn) — no extra guard needed here */}
+          {isBorrower && (
+            <CollateralWithdrawButton
+              loan={loan}
+              onSuccess={onWithdrawSuccess}
+            />
+          )}
+        </div>
       </div>
     </Card>
   );
 };
 
-// Repay Loan Modal
 const RepayLoanModal = ({ isOpen, onClose, loan, onSuccess }) => {
+  const { contracts, approveToken } = useWeb3();
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -272,6 +340,8 @@ const RepayLoanModal = ({ isOpen, onClose, loan, onSuccess }) => {
 
   const remainingAmount = parseFloat(loan.remainingAmount || loan.amountDue);
   const maxRepayment = remainingAmount.toFixed(4);
+  const isOverdue = loan.isOverdue;
+  const hasCollateral = parseFloat(loan.terms.collateralAmount) > 0;
 
   const handleRepay = async (e) => {
     e.preventDefault();
@@ -279,17 +349,62 @@ const RepayLoanModal = ({ isOpen, onClose, loan, onSuccess }) => {
     setError('');
 
     try {
-      // TODO: Implement actual contract call
-      // const tx = await contracts.lendingPool.repayLoan(loan.loanId, ethers.parseEther(amount));
-      // await tx.wait();
-      
-      // Simulate success
-      setTimeout(() => {
-        onSuccess();
-        setLoading(false);
-      }, 2000);
+      if (!contracts.lendingPool) {
+        throw new Error('Contracts not initialized. Please reconnect your wallet.');
+      }
+
+      if (!amount || parseFloat(amount) <= 0) {
+        throw new Error('Please enter a valid repayment amount');
+      }
+
+      const repaymentAmount = ethers.parseEther(amount);
+      const tokenAddress = loan.terms.tokenAddress;
+
+      console.log('Repaying loan:', { loanId: loan.loanId, amount, tokenAddress });
+
+      console.log('1️Approving token spending...');
+      await approveToken(
+        tokenAddress,
+        await contracts.lendingPool.getAddress(),
+        repaymentAmount
+      );
+      console.log('   Token approved');
+
+      console.log('2️Repaying loan...');
+      const tx = await contracts.lendingPool.repayLoan(loan.loanId, repaymentAmount);
+      console.log('Waiting for confirmation...', tx.hash);
+      const receipt = await tx.wait();
+      console.log('Loan repayment successful!', receipt);
+
+      const isFullRepayment = parseFloat(amount) >= remainingAmount - 0.0001;
+
+      if (isFullRepayment && hasCollateral) {
+        alert(
+          `Loan fully repaid!\n\n` +
+          `Your collateral has been unlocked. ` +
+          `Click "Withdraw Collateral" on this loan card to reclaim it.`
+        );
+      } else {
+        alert(`Successfully repaid ${amount} ETH!`);
+      }
+
+      onSuccess();
+      setLoading(false);
     } catch (err) {
-      setError(err.message || 'Failed to repay loan');
+      console.error('Error repaying loan:', err);
+      
+      let errorMessage = 'Failed to repay loan';
+      if (err.message.includes('insufficient')) {
+        errorMessage = 'Insufficient token balance';
+      } else if (err.message.includes('user rejected')) {
+        errorMessage = 'Transaction rejected by user';
+      } else if (err.reason) {
+        errorMessage = err.reason;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
       setLoading(false);
     }
   };
@@ -299,11 +414,21 @@ const RepayLoanModal = ({ isOpen, onClose, loan, onSuccess }) => {
       <form onSubmit={handleRepay} className="space-y-4">
         {error && <Alert variant="error">{error}</Alert>}
 
+        {isOverdue && (
+          <Alert variant="warning">
+            This loan is overdue! Please repay as soon as possible to avoid penalties and potential liquidation.
+          </Alert>
+        )}
+
         <Card className="bg-blue-50 border border-blue-200">
           <div className="space-y-2">
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Loan ID</span>
               <span className="font-semibold">#{loan.loanId}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-600">Loan Token</span>
+              <span className="font-mono text-sm">{loan.terms.tokenAddress.slice(0, 10)}...</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Total Due</span>
@@ -315,13 +440,13 @@ const RepayLoanModal = ({ isOpen, onClose, loan, onSuccess }) => {
             </div>
             <div className="flex justify-between border-t pt-2">
               <span className="text-sm font-medium">Remaining</span>
-              <span className="font-bold text-lg">{maxRepayment} ETH</span>
+              <span className="font-bold text-lg text-blue-900">{maxRepayment} ETH</span>
             </div>
           </div>
         </Card>
 
         <Input
-          label="Repayment Amount (ETH)"
+          label="Repayment Amount (in loan token)"
           type="number"
           step="0.0001"
           value={amount}
@@ -331,45 +456,20 @@ const RepayLoanModal = ({ isOpen, onClose, loan, onSuccess }) => {
         />
 
         <div className="flex gap-2">
-          <Button 
-            type="button"
-            variant="outline" 
-            onClick={() => setAmount((remainingAmount * 0.25).toFixed(4))}
-            className="flex-1"
-          >
-            25%
-          </Button>
-          <Button 
-            type="button"
-            variant="outline" 
-            onClick={() => setAmount((remainingAmount * 0.5).toFixed(4))}
-            className="flex-1"
-          >
-            50%
-          </Button>
-          <Button 
-            type="button"
-            variant="outline" 
-            onClick={() => setAmount((remainingAmount * 0.75).toFixed(4))}
-            className="flex-1"
-          >
-            75%
-          </Button>
-          <Button 
-            type="button"
-            variant="outline" 
-            onClick={() => setAmount(maxRepayment)}
-            className="flex-1"
-          >
-            100%
-          </Button>
+          <Button type="button" variant="outline" onClick={() => setAmount((remainingAmount * 0.25).toFixed(4))} className="flex-1">25%</Button>
+          <Button type="button" variant="outline" onClick={() => setAmount((remainingAmount * 0.5).toFixed(4))} className="flex-1">50%</Button>
+          <Button type="button" variant="outline" onClick={() => setAmount((remainingAmount * 0.75).toFixed(4))} className="flex-1">75%</Button>
+          <Button type="button" variant="outline" onClick={() => setAmount(maxRepayment)} className="flex-1">100%</Button>
         </div>
 
-        {loan.isOverdue && (
-          <Alert variant="warning">
-            This loan is overdue. Please repay as soon as possible to avoid further penalties.
-          </Alert>
-        )}
+        <Alert variant="info">
+          Collateral can only be unlocked after full repayment is made 
+          {hasCollateral && (
+            <p className="mt-2 text-sm font-medium text-blue-800">
+              After <strong>full</strong> repayment, a "Withdraw Collateral" button will appear on this loan card.
+            </p>
+          )}
+        </Alert>
 
         <div className="flex gap-4 pt-4">
           <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
@@ -382,7 +482,7 @@ const RepayLoanModal = ({ isOpen, onClose, loan, onSuccess }) => {
             disabled={!amount || parseFloat(amount) <= 0}
             className="flex-1"
           >
-            Repay {amount ? `${amount} ETH` : 'Loan'}
+            {loading ? 'Processing...' : `Repay ${amount || '0'} ETH`}
           </Button>
         </div>
       </form>

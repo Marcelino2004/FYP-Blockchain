@@ -12,29 +12,29 @@ const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL;
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY;
 const MAINNET_RPC_URL = process.env.MAINNET_RPC_URL;
 
-/** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
   solidity: {
     compilers: [
-      { version: "0.8.7" },
-      { version: "0.4.19" },
-      { version: "0.8.20" },
-    ],
-    settings: {
-      optimizer: {
-        enabled: true,
-        runs: 200,
+      {
+        version: "0.8.20",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200,
+          },
+          viaIR: false,
+        },
       },
-      viaIR: false,
-    },
+    ],
   },
+
+  allowUnlimitedContractSize: true,
   defaultNetwork: "hardhat",
   networks: {
     hardhat: {
       chainId: 31337,
       // forking: { url: MAINNET_RPC_URL, blockNumber: 17600000 },
       gasPrice: 20000000000,
-      allowUnlimitedContractSize: false,
       initialBaseFeePerGas: 0,
     },
     sepolia: {
@@ -44,6 +44,7 @@ module.exports = {
     },
     localhost: {
       url: "http://127.0.0.1:8545",
+      chainId: 31337,
       initialBaseFeePerGas: 0,
     },
   },

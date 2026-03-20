@@ -1,0 +1,19 @@
+{
+  "network": "localhost",
+  "chainId": "31337",
+  "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+  "timestamp": "2026-01-26T07:51:21.661Z",
+  "contracts": {
+    "reputationManager": "0x8A93d247134d91e0de6f96547cB0204e5BE8e5D8",
+    "priceOracle": "0x40918Ba7f132E0aCba2CE4de4c4baF9BD2D7D849",
+    "collateralManager": "0xF32D39ff9f6Aa7a7A64d7a4F00a54826Ef791a55",
+    "lendingPool": "0xd6e1afe5cA8D00A2EFC01B89997abE2De47fdfAf",
+    "lendingPoolLens": "0x99dBE4AEa58E518C50a1c04aE9b48C9F6354612f",
+    "coSigningManager": "0x6F6f570F45833E249e27022648a26F4076F48f78"
+  },
+  "tokens": {
+    "WETH": "0x525C7063E7C20997BaaE9bDa922159152D0e8417",
+    "USDC": "0x38a024C0b412B9d1db8BC398140D00F5Af3093D4",
+    "WBTC": "0x5fc748f1FEb28d7b76fa1c6B07D8ba2d5535177c"
+  }
+}

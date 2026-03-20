@@ -32,13 +32,14 @@ class CoSigningService {
           reputationStaked: record.reputationStaked.toString(),
           bonusProvided: record.bonusProvided.toString(),
           coSignTimestamp: new Date(
-            Number(record.coSignTimestamp) * 1000
+            Number(record.coSignTimestamp) * 1000,
           ).toISOString(),
           isActive: record.isActive,
           loanCompleted: record.loanCompleted,
           borrowerDefaulted: record.borrowerDefaulted,
+          wasCancelled: record.wasCancelled,
         };
-      })
+      }),
     );
 
     return {

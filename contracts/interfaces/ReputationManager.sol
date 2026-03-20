@@ -4,11 +4,7 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-/**
- * @title ReputationManager
- * @notice Manages user reputation scores for decentralized lending platform
- * @dev Implements multi-factor reputation system with decay, anti-gaming, and co-signing
- */
+//Manages user reputation scores for decentralized lending platform
 contract ReputationManager is AccessControl, ReentrancyGuard {
     // ============ State Variables ============
 
@@ -20,34 +16,33 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
     // Reputation score bounds
     uint256 public constant MIN_REPUTATION = 0;
     uint256 public constant MAX_REPUTATION = 1000;
-    uint256 public constant STARTING_REPUTATION = 100;
+    uint256 public constant STARTING_REPUTATION = 200;
 
     // Reputation weights (out of 100 for percentage)
-    uint256 public constant REPAYMENT_WEIGHT = 50; // 50% weight
-    uint256 public constant TRANSACTION_WEIGHT = 25; // 25% weight
-    uint256 public constant COSIGNING_WEIGHT = 15; // 15% weight
-    uint256 public constant WALLET_AGE_WEIGHT = 10; // 10% weight
+    uint256 public constant REPAYMENT_WEIGHT = 20;
+    uint256 public constant TRANSACTION_WEIGHT = 45;
+    uint256 public constant WALLET_AGE_WEIGHT = 35;
 
     // Decay parameters
-    uint256 public constant DECAY_START_DAYS = 90; // Start decay after 90 days of inactivity
-    uint256 public constant MAX_DECAY_PERCENTAGE = 50; // Max 50% reputation loss
-    uint256 public constant DECAY_PERIOD_DAYS = 180; // Full decay over 180 days
+    uint256 public constant DECAY_START_DAYS = 90;
+    uint256 public constant MAX_DECAY_PERCENTAGE = 50;
+    uint256 public constant DECAY_PERIOD_DAYS = 180;
 
     // Anti-gaming parameters
     uint256 public constant REPUTATION_CAP_PERIOD = 1 days;
-    uint256 public constant MAX_REPUTATION_GAIN_PER_PERIOD = 50;
-    uint256 public constant WALLET_AGE_CAP_DAYS = 365; // Wallet age contribution caps at 1 year
+    uint256 public constant MAX_REPUTATION_GAIN_PER_PERIOD = 100;
+    uint256 public constant WALLET_AGE_CAP_DAYS = 365;
     uint256 public constant COSIGN_COOLDOWN = 30 days;
     uint256 public constant MAX_COSIGN_BONUS = 100;
 
-    // Off-chain verification bonuses
-    uint256 public constant EMAIL_VERIFICATION_BONUS = 30;
-    uint256 public constant PHONE_VERIFICATION_BONUS = 70;
+    // Off-chain verification bonuses (exempt from daily cap)
+    uint256 public constant EMAIL_VERIFICATION_BONUS = 60;
+    uint256 public constant PHONE_VERIFICATION_BONUS = 140;
 
     // Repayment scoring
     uint256 public constant SUCCESSFUL_REPAYMENT_BASE = 20;
     uint256 public constant DEFAULT_PENALTY_BASE = 100;
-    uint256 public constant COSIGNER_PENALTY_MULTIPLIER = 30; // 30% of borrower penalty
+    uint256 public constant COSIGNER_PENALTY_MULTIPLIER = 30;
 
     // ============ Structs ============
 
@@ -65,14 +60,13 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         uint256 lastReputationUpdate;
         bool emailVerified;
         bool phoneVerified;
-        uint256 coSigningBonus;
         uint256 reputationGainedToday;
         uint256 lastDailyResetTimestamp;
     }
 
     struct CoSigningHistory {
-        mapping(address => uint256) coSignCount; // borrower => count
-        mapping(address => uint256) lastCoSignTime; // borrower => timestamp
+        mapping(address => uint256) coSignCount;
+        mapping(address => uint256) lastCoSignTime;
         uint256 totalActiveCoSigns;
     }
 
@@ -80,7 +74,9 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
 
     mapping(address => ReputationData) private reputationData;
     mapping(address => CoSigningHistory) private coSigningHistory;
-    mapping(address => mapping(address => bool)) private hasInteracted; // For unique counterparties
+    mapping(address => mapping(address => bool)) private hasInteracted;
+    mapping(address => mapping(uint256 => uint256))
+        public coSigningBonusByOffer;
 
     // ============ Events ============
 
@@ -134,30 +130,16 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
 
     // ============ External Functions ============
 
-    /**
-     * @notice Get the current reputation score for a user (with decay applied)
-     * @param user The address of the user
-     * @return The calculated reputation score
-     */
     function getReputationScore(address user) external view returns (uint256) {
         return _calculateReputationScore(user);
     }
 
-    /**
-     * @notice Get detailed reputation data for a user
-     * @param user The address of the user
-     * @return ReputationData struct with all metrics
-     */
     function getReputationData(
         address user
     ) external view returns (ReputationData memory) {
         return reputationData[user];
     }
 
-    /**
-     * @notice Initialize reputation for a new user
-     * @param user The address of the user
-     */
     function initializeReputation(
         address user
     ) external onlyRole(DATA_FEED_ROLE) {
@@ -165,7 +147,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
 
         ReputationData storage data = reputationData[user];
 
-        // Only initialize if not already initialized
         if (data.walletCreationTime == 0) {
             data.baseScore = STARTING_REPUTATION;
             data.walletCreationTime = block.timestamp;
@@ -182,11 +163,7 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         }
     }
 
-    /**
-     * @notice Record successful loan repayment and update reputation
-     * @param borrower The address of the borrower
-     * @param loanAmount The amount repaid
-     */
+    //Record successful loan repayment and update reputation.
     function recordSuccessfulRepayment(
         address borrower,
         uint256 loanAmount
@@ -199,24 +176,19 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         ReputationData storage data = reputationData[borrower];
         uint256 oldScore = _calculateReputationScore(borrower);
 
-        // Update repayment history
         data.successfulRepayments++;
         data.totalRepaymentValue += loanAmount;
         data.lastActivityTimestamp = block.timestamp;
 
-        // Calculate reputation bonus based on loan amount
         uint256 bonus = _calculateRepaymentBonus(loanAmount);
 
-        // Check daily cap
-        _checkAndResetDailyCap(borrower);
-        if (
-            data.reputationGainedToday + bonus > MAX_REPUTATION_GAIN_PER_PERIOD
-        ) {
-            bonus = MAX_REPUTATION_GAIN_PER_PERIOD - data.reputationGainedToday;
-        }
+        // Clamp to remaining daily allowance before applying
+        bonus = _clampToDailyCap(borrower, bonus);
 
-        data.baseScore = _min(data.baseScore + bonus, MAX_REPUTATION);
-        data.reputationGainedToday += bonus;
+        if (bonus > 0) {
+            data.baseScore = _min(data.baseScore + bonus, MAX_REPUTATION);
+            data.reputationGainedToday += bonus;
+        }
 
         uint256 newScore = _calculateReputationScore(borrower);
         emit ReputationUpdated(
@@ -227,11 +199,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         );
     }
 
-    /**
-     * @notice Record loan default and apply penalty
-     * @param borrower The address of the borrower who defaulted
-     * @param loanAmount The amount of the defaulted loan
-     */
     function recordDefault(
         address borrower,
         uint256 loanAmount
@@ -244,18 +211,15 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         ReputationData storage data = reputationData[borrower];
         uint256 oldScore = _calculateReputationScore(borrower);
 
-        // Update default history
         data.defaults++;
         data.totalDefaultValue += loanAmount;
         data.lastActivityTimestamp = block.timestamp;
 
-        // Calculate penalty (severe)
         uint256 penalty = _calculateDefaultPenalty(
             loanAmount,
             data.totalRepaymentValue
         );
 
-        // Apply penalty
         if (data.baseScore > penalty) {
             data.baseScore -= penalty;
         } else {
@@ -272,11 +236,7 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         );
     }
 
-    /**
-     * @notice Record off-chain verification (email/phone)
-     * @param user The address of the user
-     * @param verificationType "email" or "phone"
-     */
+    //Record off-chain verification (email/phone).
     function recordOffChainVerification(
         address user,
         string calldata verificationType
@@ -302,6 +262,7 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         }
 
         if (bonus > 0) {
+            // Applied directly — no daily cap
             data.baseScore = _min(data.baseScore + bonus, MAX_REPUTATION);
             data.lastActivityTimestamp = block.timestamp;
 
@@ -311,17 +272,11 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         }
     }
 
-    /**
-     * @notice Add co-signing bonus to borrower's reputation
-     * @param borrower The address of the borrower
-     * @param coSigner The address of the co-signer
-     * @param coSignerReputation The reputation of the co-signer
-     * @return The bonus amount added
-     */
     function addCoSigningBonus(
         address borrower,
         address coSigner,
-        uint256 coSignerReputation
+        uint256 coSignerReputation,
+        uint256 loanOfferId
     ) external onlyRole(COSIGNING_ROLE) nonReentrant returns (uint256) {
         if (borrower == address(0) || coSigner == address(0)) {
             revert ReputationManager__InvalidAddress();
@@ -332,58 +287,69 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
 
         uint256 oldScore = _calculateReputationScore(borrower);
 
-        // Calculate bonus with diminishing returns
         uint256 bonus = _calculateCoSigningBonus(
             borrower,
             coSigner,
             coSignerReputation
         );
-
         if (bonus > 0) {
             ReputationData storage data = reputationData[borrower];
 
-            // Check daily cap
-            _checkAndResetDailyCap(borrower);
-            if (
-                data.reputationGainedToday + bonus >
-                MAX_REPUTATION_GAIN_PER_PERIOD
-            ) {
-                bonus =
-                    MAX_REPUTATION_GAIN_PER_PERIOD -
-                    data.reputationGainedToday;
-            }
-
-            data.coSigningBonus = _min(
-                data.coSigningBonus + bonus,
+            coSigningBonusByOffer[borrower][loanOfferId] = _min(
+                coSigningBonusByOffer[borrower][loanOfferId] + bonus,
                 MAX_COSIGN_BONUS
             );
-            data.reputationGainedToday += bonus;
             data.lastActivityTimestamp = block.timestamp;
-
-            // Update co-signing history
-            CoSigningHistory storage history = coSigningHistory[coSigner];
-            history.coSignCount[borrower]++;
-            history.lastCoSignTime[borrower] = block.timestamp;
-            history.totalActiveCoSigns++;
-
-            uint256 newScore = _calculateReputationScore(borrower);
-            emit ReputationUpdated(
-                borrower,
-                oldScore,
-                newScore,
-                "Co-signing bonus"
-            );
         }
+
+        // Always update co-signing history (for diminishing returns tracking)
+        CoSigningHistory storage history = coSigningHistory[coSigner];
+        history.coSignCount[borrower]++;
+        history.lastCoSignTime[borrower] = block.timestamp;
+        history.totalActiveCoSigns++;
+
+        uint256 newScore = _calculateReputationScore(borrower);
+        emit ReputationUpdated(
+            borrower,
+            oldScore,
+            newScore,
+            "Co-signing bonus pending"
+        );
 
         return bonus;
     }
 
-    /**
-     * @notice Apply penalty to co-signer when borrower defaults
-     * @param coSigner The address of the co-signer
-     * @param borrower The address of the borrower who defaulted
-     * @param loanAmount The amount of the defaulted loan
-     */
+    function applyOfferCoSigningBonus(
+        address borrower,
+        uint256 loanOfferId
+    ) external onlyRole(COSIGNING_ROLE) nonReentrant returns (uint256) {
+        uint256 bonus = coSigningBonusByOffer[borrower][loanOfferId];
+        if (bonus == 0) return 0;
+
+        ReputationData storage data = reputationData[borrower];
+        uint256 oldScore = _calculateReputationScore(borrower);
+
+        data.baseScore = _min(data.baseScore + bonus, MAX_REPUTATION);
+        delete coSigningBonusByOffer[borrower][loanOfferId];
+
+        uint256 newScore = _calculateReputationScore(borrower);
+        emit ReputationUpdated(
+            borrower,
+            oldScore,
+            newScore,
+            "Co-signing bonus applied"
+        );
+
+        return bonus;
+    }
+
+    function clearOfferCoSigningBonus(
+        address borrower,
+        uint256 loanOfferId
+    ) external onlyRole(COSIGNING_ROLE) {
+        delete coSigningBonusByOffer[borrower][loanOfferId];
+    }
+
     function penalizeCoSigner(
         address coSigner,
         address borrower,
@@ -398,28 +364,18 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         ReputationData storage data = reputationData[coSigner];
         uint256 oldScore = _calculateReputationScore(coSigner);
 
-        // Calculate penalty (30% of what borrower would get)
         uint256 borrowerPenalty = _calculateDefaultPenalty(loanAmount, 0);
         uint256 coSignerPenalty = (borrowerPenalty *
             COSIGNER_PENALTY_MULTIPLIER) / 100;
 
-        // Apply penalty
         if (data.baseScore > coSignerPenalty) {
             data.baseScore -= coSignerPenalty;
         } else {
             data.baseScore = MIN_REPUTATION;
         }
 
-        // Reduce co-signing bonus
-        if (data.coSigningBonus > coSignerPenalty / 2) {
-            data.coSigningBonus -= coSignerPenalty / 2;
-        } else {
-            data.coSigningBonus = 0;
-        }
-
         data.lastActivityTimestamp = block.timestamp;
 
-        // Update co-signing history
         CoSigningHistory storage history = coSigningHistory[coSigner];
         if (history.totalActiveCoSigns > 0) {
             history.totalActiveCoSigns--;
@@ -439,11 +395,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         );
     }
 
-    /**
-     * @notice Reward co-signer when borrower repays successfully
-     * @param coSigner The address of the co-signer
-     * @param borrower The address of the borrower
-     */
     function rewardCoSigner(
         address coSigner,
         address borrower
@@ -457,24 +408,15 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         ReputationData storage data = reputationData[coSigner];
         uint256 oldScore = _calculateReputationScore(coSigner);
 
-        // Small reward for successful co-signing
-        uint256 reward = 10;
+        uint256 reward = _clampToDailyCap(coSigner, 10);
 
-        // Check daily cap
-        _checkAndResetDailyCap(coSigner);
-        if (
-            data.reputationGainedToday + reward > MAX_REPUTATION_GAIN_PER_PERIOD
-        ) {
-            reward =
-                MAX_REPUTATION_GAIN_PER_PERIOD -
-                data.reputationGainedToday;
+        if (reward > 0) {
+            data.baseScore = _min(data.baseScore + reward, MAX_REPUTATION);
+            data.reputationGainedToday += reward;
         }
 
-        data.baseScore = _min(data.baseScore + reward, MAX_REPUTATION);
-        data.reputationGainedToday += reward;
         data.lastActivityTimestamp = block.timestamp;
 
-        // Update co-signing history
         CoSigningHistory storage history = coSigningHistory[coSigner];
         if (history.totalActiveCoSigns > 0) {
             history.totalActiveCoSigns--;
@@ -489,13 +431,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         );
     }
 
-    /**
-     * @notice Update on-chain transaction metrics for a user
-     * @param user The address of the user
-     * @param txCount Number of transactions
-     * @param counterparty Address interacted with
-     * @param txValue Value of transaction
-     */
     function updateOnChainMetrics(
         address user,
         uint256 txCount,
@@ -508,18 +443,14 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
 
         ReputationData storage data = reputationData[user];
 
-        // Update transaction count
         data.totalTransactions += txCount;
 
-        // Update unique counterparties
         if (counterparty != address(0) && !hasInteracted[user][counterparty]) {
             hasInteracted[user][counterparty] = true;
             data.uniqueCounterparties++;
         }
 
-        // Update total value (small transactions contribute less)
         if (txValue > 0.01 ether) {
-            // Minimum threshold
             data.totalValueTransferred += txValue;
         }
 
@@ -533,12 +464,15 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         );
     }
 
-    /**
-     * @notice Check if a user meets minimum reputation requirement
-     * @param user The address of the user
-     * @param minimumReputation The minimum reputation required
-     * @return true if user meets requirement
-     */
+    function decrementActiveCoSigns(
+        address coSigner
+    ) external onlyRole(COSIGNING_ROLE) {
+        CoSigningHistory storage history = coSigningHistory[coSigner];
+        if (history.totalActiveCoSigns > 0) {
+            history.totalActiveCoSigns--;
+        }
+    }
+
     function meetsReputationRequirement(
         address user,
         uint256 minimumReputation
@@ -546,12 +480,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         return _calculateReputationScore(user) >= minimumReputation;
     }
 
-    /**
-     * @notice Get co-signing count for a pair
-     * @param coSigner The co-signer address
-     * @param borrower The borrower address
-     * @return The number of times co-signed
-     */
     function getCoSignCount(
         address coSigner,
         address borrower
@@ -559,199 +487,148 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         return coSigningHistory[coSigner].coSignCount[borrower];
     }
 
-    /**
-     * @notice Check if diminishing returns apply
-     * @param coSigner The co-signer address
-     * @param borrower The borrower address
-     * @return true if diminishing returns apply
-     */
+    function getOfferCoSigningBonus(
+        address borrower,
+        uint256 loanOfferId
+    ) external view returns (uint256) {
+        return coSigningBonusByOffer[borrower][loanOfferId];
+    }
+
     function hasDiminishingReturns(
         address coSigner,
         address borrower
     ) external view returns (bool) {
         CoSigningHistory storage history = coSigningHistory[coSigner];
-
-        // Check if in cooldown period
         if (
             block.timestamp < history.lastCoSignTime[borrower] + COSIGN_COOLDOWN
         ) {
             return history.coSignCount[borrower] > 0;
         }
-
         return false;
+    }
+
+    function getRemainingDailyCap(
+        address user
+    ) external view returns (uint256) {
+        ReputationData storage data = reputationData[user];
+        if (block.timestamp >= data.lastDailyResetTimestamp + 1 days) {
+            return MAX_REPUTATION_GAIN_PER_PERIOD / 2;
+        }
+        if (data.reputationGainedToday >= MAX_REPUTATION_GAIN_PER_PERIOD) {
+            return 0;
+        }
+        return
+            (MAX_REPUTATION_GAIN_PER_PERIOD - data.reputationGainedToday) / 2;
     }
 
     // ============ Internal Functions ============
 
-    /**
-     * @notice Calculate total reputation score with all factors
-     * @param user The address of the user
-     * @return The final reputation score
-     */
     function _calculateReputationScore(
         address user
     ) internal view returns (uint256) {
         ReputationData storage data = reputationData[user];
+        if (data.walletCreationTime == 0) return 0;
 
-        // If not initialized, return 0
-        if (data.walletCreationTime == 0) {
-            return 0;
-        }
-
-        // Start with base score
         uint256 score = data.baseScore;
 
-        // Add co-signing bonus
-        score += data.coSigningBonus;
-
-        // Calculate component scores
-        uint256 repaymentScore = _calculateRepaymentScore(data);
+        uint256 defaultPenaltyScore = _calculateRepaymentScore(data);
         uint256 transactionScore = _calculateTransactionScore(data);
         uint256 walletAgeScore = _calculateWalletAgeScore(data);
 
-        // Apply weights
-        uint256 weightedScore = (repaymentScore *
-            REPAYMENT_WEIGHT +
-            transactionScore *
+        uint256 weightedBonus = (transactionScore *
             TRANSACTION_WEIGHT +
-            data.coSigningBonus *
-            COSIGNING_WEIGHT +
             walletAgeScore *
-            WALLET_AGE_WEIGHT) / 100;
+            WALLET_AGE_WEIGHT) / 80;
 
-        // Combine with base score
-        score = (score + weightedScore) / 2;
+        uint256 weightedPenalty = (defaultPenaltyScore * REPAYMENT_WEIGHT) /
+            100;
 
-        // Apply decay
-        uint256 decayAmount = _calculateDecay(data);
-        if (score > decayAmount) {
-            score -= decayAmount;
+        score = (score + weightedBonus) / 2;
+
+        if (score > weightedPenalty) {
+            score -= weightedPenalty;
         } else {
             score = MIN_REPUTATION;
         }
 
-        // Ensure within bounds
+        uint256 decayAmount = _calculateDecay(data);
+        score = score > decayAmount ? score - decayAmount : MIN_REPUTATION;
+
         return _min(score, MAX_REPUTATION);
     }
 
-    /**
-     * @notice Calculate repayment history score
-     */
     function _calculateRepaymentScore(
         ReputationData storage data
     ) internal view returns (uint256) {
-        if (data.successfulRepayments == 0 && data.defaults == 0) {
-            return STARTING_REPUTATION;
-        }
+        if (data.defaults == 0) return 0;
 
-        // Base calculation: successful repayments contribute positively
-        uint256 successScore = data.successfulRepayments * 30;
-
-        // Defaults severely hurt score
         uint256 defaultPenalty = data.defaults * 80;
 
-        // Factor in loan amounts
-        uint256 valueScore = 0;
+        uint256 mitigationScore = 0;
         if (data.totalRepaymentValue > 0) {
-            valueScore = _min((data.totalRepaymentValue / 1 ether) * 5, 100);
+            mitigationScore = _min(
+                (data.totalRepaymentValue / 1 ether) * 2,
+                60
+            );
         }
 
-        uint256 totalScore = successScore + valueScore;
-
-        if (totalScore > defaultPenalty) {
-            return _min(totalScore - defaultPenalty, 300);
-        }
-
-        return 0;
+        if (mitigationScore >= defaultPenalty) return 0;
+        return _min(defaultPenalty - mitigationScore, 300);
     }
 
-    /**
-     * @notice Calculate transaction activity score
-     */
     function _calculateTransactionScore(
         ReputationData storage data
     ) internal view returns (uint256) {
-        // Transaction count (capped to prevent spam)
         uint256 txScore = _min(data.totalTransactions * 2, 100);
-
-        // Unique counterparties (diversity bonus)
         uint256 diversityScore = _min(data.uniqueCounterparties * 5, 100);
-
-        // Total value transferred (meaningful activity)
         uint256 valueScore = 0;
         if (data.totalValueTransferred > 0) {
             valueScore = _min((data.totalValueTransferred / 1 ether) * 3, 100);
         }
-
         return _min(((txScore + diversityScore + valueScore) * 2) / 3, 200);
     }
 
-    /**
-     * @notice Calculate wallet age score
-     */
     function _calculateWalletAgeScore(
         ReputationData storage data
     ) internal view returns (uint256) {
         uint256 ageDays = (block.timestamp - data.walletCreationTime) / 1 days;
-
-        // Cap at 1 year
         ageDays = _min(ageDays, WALLET_AGE_CAP_DAYS);
-
-        // Linear increase up to cap
         return (ageDays * 100) / WALLET_AGE_CAP_DAYS;
     }
 
-    /**
-     * @notice Calculate reputation decay based on inactivity
-     */
     function _calculateDecay(
         ReputationData storage data
     ) internal view returns (uint256) {
         uint256 daysSinceActivity = (block.timestamp -
             data.lastActivityTimestamp) / 1 days;
 
-        if (daysSinceActivity < DECAY_START_DAYS) {
-            return 0;
-        }
+        if (daysSinceActivity < DECAY_START_DAYS) return 0;
 
         uint256 decayDays = daysSinceActivity - DECAY_START_DAYS;
 
         if (decayDays >= DECAY_PERIOD_DAYS) {
-            // Max decay reached
             return (data.baseScore * MAX_DECAY_PERCENTAGE) / 100;
         }
 
-        // Linear decay over period
         uint256 decayPercentage = (decayDays * MAX_DECAY_PERCENTAGE) /
             DECAY_PERIOD_DAYS;
         return (data.baseScore * decayPercentage) / 100;
     }
 
-    /**
-     * @notice Calculate repayment bonus
-     */
     function _calculateRepaymentBonus(
         uint256 loanAmount
     ) internal pure returns (uint256) {
-        // Base bonus + amount-based bonus (capped)
         uint256 amountBonus = _min((loanAmount / 1 ether) * 2, 30);
         return SUCCESSFUL_REPAYMENT_BASE + amountBonus;
     }
 
-    /**
-     * @notice Calculate default penalty
-     */
     function _calculateDefaultPenalty(
         uint256 loanAmount,
         uint256 totalRepaymentValue
     ) internal pure returns (uint256) {
-        // Severe base penalty
         uint256 basePenalty = DEFAULT_PENALTY_BASE;
-
-        // Additional penalty based on loan size
         uint256 amountPenalty = _min((loanAmount / 1 ether) * 10, 100);
 
-        // Less penalty if user has good history
         uint256 historyReduction = 0;
         if (totalRepaymentValue > loanAmount * 10) {
             historyReduction = 20;
@@ -766,9 +643,6 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         return basePenalty;
     }
 
-    /**
-     * @notice Calculate co-signing bonus with diminishing returns
-     */
     function _calculateCoSigningBonus(
         address borrower,
         address coSigner,
@@ -776,35 +650,27 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
     ) internal view returns (uint256) {
         CoSigningHistory storage history = coSigningHistory[coSigner];
 
-        // Base bonus is proportional to co-signer's reputation
-        uint256 baseBonus = (coSignerReputation * 10) / 100; // 10% of co-signer reputation
-        baseBonus = _min(baseBonus, 50); // Cap at 50
+        uint256 baseBonus = (coSignerReputation * 10) / 100;
+        baseBonus = _min(baseBonus, 50);
 
-        // Check if in cooldown period
         if (
             block.timestamp < history.lastCoSignTime[borrower] + COSIGN_COOLDOWN
         ) {
-            // Apply diminishing returns based on count
             uint256 count = history.coSignCount[borrower];
-
             if (count == 0) {
-                return baseBonus; // First time: full bonus
+                return baseBonus;
             } else if (count == 1) {
-                return (baseBonus * 60) / 100; // Second time: 60%
+                return (baseBonus * 60) / 100;
             } else if (count == 2) {
-                return (baseBonus * 30) / 100; // Third time: 30%
+                return (baseBonus * 30) / 100;
             } else {
-                return (baseBonus * 10) / 100; // After that: 10%
+                return (baseBonus * 10) / 100;
             }
         }
 
-        // Cooldown passed, reset to full bonus
         return baseBonus;
     }
 
-    /**
-     * @notice Ensure user is initialized
-     */
     function _ensureInitialized(address user) internal {
         if (reputationData[user].walletCreationTime == 0) {
             reputationData[user].baseScore = STARTING_REPUTATION;
@@ -815,21 +681,36 @@ contract ReputationManager is AccessControl, ReentrancyGuard {
         }
     }
 
-    /**
-     * @notice Check and reset daily reputation gain cap
-     */
-    function _checkAndResetDailyCap(address user) internal {
+    //Reset the daily gain counter if a new 24h window has started, then return how much of the requested gain can be applied within the cap.
+    function _clampToDailyCap(
+        address user,
+        uint256 requestedGain
+    ) internal returns (uint256) {
         ReputationData storage data = reputationData[user];
 
         if (block.timestamp >= data.lastDailyResetTimestamp + 1 days) {
             data.reputationGainedToday = 0;
             data.lastDailyResetTimestamp = block.timestamp;
         }
+
+        if (data.reputationGainedToday >= MAX_REPUTATION_GAIN_PER_PERIOD) {
+            return 0;
+        }
+
+        uint256 remaining = MAX_REPUTATION_GAIN_PER_PERIOD -
+            data.reputationGainedToday;
+        return _min(requestedGain, remaining);
     }
 
-    /**
-     * @notice Helper function to get minimum of two numbers
-     */
+    // Refresh state
+    function touchReputation(address user) external onlyRole(DATA_FEED_ROLE) {
+        if (user == address(0)) revert ReputationManager__InvalidAddress();
+        _ensureInitialized(user);
+        _clampToDailyCap(user, 0); // resets reputationGainedToday if 24h elapsed
+        reputationData[user].lastActivityTimestamp = block.timestamp;
+    }
+
+    //Helper: minimum of two numbers
     function _min(uint256 a, uint256 b) internal pure returns (uint256) {
         return a < b ? a : b;
     }

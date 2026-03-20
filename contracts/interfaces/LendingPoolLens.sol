@@ -11,11 +11,47 @@ contract LendingPoolLens {
         pool = LendingPool(lendingPool);
     }
 
+    // ============ PLATFORM STATS ============
+
+    function getPlatformStats()
+        external
+        view
+        returns (
+            uint256 totalLoans,
+            uint256 totalOffers,
+            uint256 activeLenderOffers,
+            uint256 activeBorrowerRequests,
+            uint256 platformFeeRate
+        )
+    {
+        // Get counters from LendingPool
+        totalLoans = pool.getNextLoanId() - 1;
+        totalOffers = pool.getNextOfferId() - 1;
+
+        // Get active offer counts
+        uint256[] memory lenderOfferIds = pool.getActiveLenderOfferIds();
+        uint256[] memory borrowerRequestIds = pool
+            .getActiveBorrowerRequestIds();
+
+        activeLenderOffers = lenderOfferIds.length;
+        activeBorrowerRequests = borrowerRequestIds.length;
+
+        // Get platform fee rate
+        platformFeeRate = pool.platformFeeRate();
+
+        return (
+            totalLoans,
+            totalOffers,
+            activeLenderOffers,
+            activeBorrowerRequests,
+            platformFeeRate
+        );
+    }
+
     // ============ ACTIVE OFFERS ============
 
     function getActiveLenderOffers() external view returns (uint256[] memory) {
-        uint256[] memory offerIds = pool.getActiveLenderOfferIds();
-        return _filterActiveOffers(offerIds);
+        return pool.getActiveLenderOfferIds();
     }
 
     function getActiveBorrowerRequests()
@@ -23,34 +59,7 @@ contract LendingPoolLens {
         view
         returns (uint256[] memory)
     {
-        uint256[] memory offerIds = pool.getActiveBorrowerRequestIds();
-        return _filterActiveOffers(offerIds);
-    }
-
-    function _filterActiveOffers(
-        uint256[] memory offerIds
-    ) internal view returns (uint256[] memory) {
-        uint256 count = 0;
-
-        for (uint256 i = 0; i < offerIds.length; i++) {
-            (, , , , bool isActive, ) = pool.loanOffers(offerIds[i]);
-            if (isActive) {
-                count++;
-            }
-        }
-
-        uint256[] memory activeOffers = new uint256[](count);
-        uint256 index = 0;
-
-        for (uint256 i = 0; i < offerIds.length; i++) {
-            (, , , , bool isActive, ) = pool.loanOffers(offerIds[i]);
-            if (isActive) {
-                activeOffers[index] = offerIds[i];
-                index++;
-            }
-        }
-
-        return activeOffers;
+        return pool.getActiveBorrowerRequestIds();
     }
 
     // ============ USER LOANS ============

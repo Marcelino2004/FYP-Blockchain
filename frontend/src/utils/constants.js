@@ -1,5 +1,3 @@
-// Application constants, contract addresses, and ABIs
-
 // ============ Network Configuration ============
 export const NETWORK_CONFIG = {
   sepolia: {
@@ -32,14 +30,15 @@ export const CONTRACT_ADDRESSES = {
   priceOracle: import.meta.env.VITE_PRICE_ORACLE,
   collateralManager: import.meta.env.VITE_COLLATERAL_MANAGER,
   lendingPool: import.meta.env.VITE_LENDING_POOL,
+  lendingPoolLens: import.meta.env.VITE_LENDING_POOL_LENS,
   coSigningManager: import.meta.env.VITE_COSIGNING_MANAGER,
 };
 
 // ============ Token Addresses ============
 export const TOKEN_ADDRESSES = {
-  WETH: "0xE2b5bDE7e80f89975f7229d78aD9259b2723d11F",
-  USDC: "0xC6c5Ab5039373b0CBa7d0116d9ba7fb9831C3f42",
-  WBTC: "0x4ea0Be853219be8C9cE27200Bdeee36881612FF2",
+  WETH: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+  USDC: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+  WBTC: "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
 };
 
 // ============ API Configuration ============
@@ -166,9 +165,13 @@ export const NAV_LINKS = [
 // ReputationManager ABI
 export const REPUTATION_MANAGER_ABI = [
   "function getReputationScore(address user) view returns (uint256)",
-  "function getReputationData(address user) view returns (tuple(uint256 baseScore, uint256 totalTransactions, uint256 uniqueCounterparties, uint256 totalValueTransferred, uint256 successfulRepayments, uint256 totalRepaymentValue, uint256 defaults, uint256 totalDefaultValue, uint256 walletCreationTime, uint256 lastActivityTimestamp, uint256 lastReputationUpdate, bool emailVerified, bool phoneVerified, uint256 coSigningBonus, uint256 reputationGainedToday, uint256 lastDailyResetTimestamp))",
+  "function getReputationData(address user) view returns (tuple(uint256 baseScore, uint256 totalTransactions, uint256 uniqueCounterparties, uint256 totalValueTransferred, uint256 successfulRepayments, uint256 totalRepaymentValue, uint256 defaults, uint256 totalDefaultValue, uint256 walletCreationTime, uint256 lastActivityTimestamp, uint256 lastReputationUpdate, bool emailVerified, bool phoneVerified, uint256 reputationGainedToday, uint256 lastDailyResetTimestamp))",
   "function initializeReputation(address user)",
   "function meetsReputationRequirement(address user, uint256 minimumReputation) view returns (bool)",
+  "function getOfferCoSigningBonus(address borrower, uint256 loanOfferId) view returns (uint256)",
+  "function coSigningBonusByOffer(address borrower, uint256 loanOfferId) view returns (uint256)",
+  "function getRemainingDailyCap(address user) view returns (uint256)",
+  "function touchReputation(address user)",
 ];
 
 // LendingPool ABI
@@ -181,11 +184,21 @@ export const LENDING_POOL_ABI = [
   "function getLoanOffer(uint256 offerId) view returns (tuple(uint256 offerId, uint8 offerType, address creator, tuple(address tokenAddress, uint256 principalAmount, uint256 collateralAmount, address collateralToken, uint256 interestRate, uint256 duration, uint256 minReputation, uint256 collateralRatio) terms, bool isActive, uint256 createdAt))",
   "function calculateAmountDue(uint256 loanId) view returns (uint256)",
   "function isLoanOverdue(uint256 loanId) view returns (bool)",
-  "function getActiveLenderOffers() view returns (uint256[])",
-  "function getActiveBorrowerRequests() view returns (uint256[])",
+  "function getActiveLenderOfferIds() view returns (uint256[])",
+  "function getActiveBorrowerRequestIds() view returns (uint256[])",
   "function getUserLoans(address user) view returns (uint256[])",
   "function nextLoanId() view returns (uint256)",
   "function nextOfferId() view returns (uint256)",
+  "function setCoSigningManager(address _coSigningManager)",
+  "function liquidateLoan(uint256 loanId)",
+];
+
+// LendingPoolLens ABI
+export const LENDING_POOL_LENS_ABI = [
+  "function getPlatformStats() view returns (uint256 totalLoans, uint256 totalOffers, uint256 activeLenderOffers, uint256 activeBorrowerRequests, uint256 platformFeeRate)",
+  "function getActiveLenderOffers() view returns (uint256[])",
+  "function getActiveBorrowerRequests() view returns (uint256[])",
+  "function getUserLoans(address user) view returns (uint256[])",
 ];
 
 // CollateralManager ABI
@@ -200,6 +213,7 @@ export const COLLATERAL_MANAGER_ABI = [
   "function getTokenInfo(address token) view returns (tuple(bool isSupported, uint256 maxDepositAmount, uint256 liquidationPenalty, uint256 totalDeposited))",
   "function isCollateralSufficient(uint256 loanId, uint256 loanAmount, uint256 requiredRatio) view returns (bool)",
   "function calculateHealthFactor(uint256 loanId, uint256 loanAmount) view returns (uint256)",
+  "function nextDepositId() view returns (uint256)",
 ];
 
 // CoSigningManager ABI
@@ -212,6 +226,11 @@ export const COSIGNING_MANAGER_ABI = [
   "function getAllOpenRequests() view returns (tuple(uint256 requestId, address borrower, uint256 loanOfferId, uint256 requestedBonus, bool isActive, uint256 createdAt, string message)[])",
   "function getUserCoSignings(address coSigner) view returns (uint256[])",
   "function getCoSigningStats(address user) view returns (uint256 totalCoSignings, uint256 activeCoSignings, uint256 successfulCoSignings, uint256 defaultedCoSignings)",
+  "function cancelCoSigningRecord(uint256 recordId)",
+  "function getRecordsByOffer(uint256 loanOfferId) view returns (uint256[])",
+  "function getCoSigningRecord(uint256 recordId) view returns (tuple(uint256 recordId, address coSigner, address borrower, uint256 loanId, uint256 reputationStaked, uint256 bonusProvided, uint256 coSignTimestamp, bool isActive, bool loanCompleted, bool borrowerDefaulted, bool wasCancelled))",
+  "function linkRecordToLoan(uint256 recordId, uint256 loanId)",
+  "function getLoanCoSigners(uint256 loanId) view returns (uint256[])",
 ];
 
 // PriceOracle ABI
@@ -233,6 +252,63 @@ export const ERC20_ABI = [
   "function transfer(address to, uint256 amount) returns (bool)",
   "function transferFrom(address from, address to, uint256 amount) returns (bool)",
 ];
+
+// ============ usePlatformStats Hook ============
+export const usePlatformStats = () => {
+  const { contracts } = useWeb3(); // Use contracts from Web3Context
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const fetchStats = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Try frontend-direct call first (faster)
+      if (contracts.lendingPoolLens) {
+        console.log("📊 Fetching platform stats from contract...");
+        const result = await contracts.lendingPoolLens.getPlatformStats();
+
+        const statsData = {
+          totalLoans: result[0].toString(),
+          totalOffers: result[1].toString(),
+          activeLenderOffers: Number(result[2]),
+          activeBorrowerRequests: Number(result[3]),
+          platformFeeRate: (Number(result[4]) / 100).toFixed(2) + "%",
+        };
+
+        console.log("✅ Platform stats:", statsData);
+        setStats(statsData);
+      } else {
+        // Fallback to API if contracts not loaded
+        console.log("📊 Fetching platform stats from API...");
+        const data = await api.getPlatformStats();
+        setStats(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch platform stats:", err);
+      setError(err.message);
+
+      // Set default values on error
+      setStats({
+        totalLoans: "0",
+        totalOffers: "0",
+        activeLenderOffers: 0,
+        activeBorrowerRequests: 0,
+        platformFeeRate: "1.00%",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [contracts]);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  return { stats, loading, error, refetch: fetchStats };
+};
 
 // ============ Error Messages ============
 export const ERROR_MESSAGES = {

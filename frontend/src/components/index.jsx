@@ -1,4 +1,3 @@
-
 export { Button } from './Button';
 export { Card } from './Card';
 export { Badge } from './Badge';
@@ -11,5 +10,4 @@ export { ReputationBadge } from './ReputationBadge';
 export { AddressDisplay } from './AddressDisplay';
 export { StatCard } from './StatCard';
 export { EmptyState } from './EmptyState';
-
-// Can import like this: import { Button, Card, Badge } from './components';
+export { CollateralWithdrawButton } from './CollateralWithdrawButton';

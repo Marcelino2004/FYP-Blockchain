@@ -6,6 +6,7 @@ class ContractLoader {
   constructor() {
     this.contracts = {};
     this.provider = null;
+    this.signer = null;
     this.deploymentInfo = null;
   }
 
@@ -19,37 +20,60 @@ class ContractLoader {
       throw new Error("Deployments directory not found!");
     }
 
-    const files = fs.readdirSync(deploymentsDir);
-    const latestFile = files.sort().reverse()[0];
+    const files = fs
+      .readdirSync(deploymentsDir)
+      .filter((f) => f.endsWith(".json"))
+      .map((f) => ({
+        name: f,
+        time: fs.statSync(path.join(deploymentsDir, f)).mtime.getTime(),
+      }))
+      .sort((a, b) => b.time - a.time);
 
-    if (!latestFile) {
+    if (files.length === 0) {
       throw new Error("No deployment file found!");
     }
 
+    const latestFile = files[0].name;
     console.log(`📄 Loading deployment: ${latestFile}`);
+    console.log(`   Modified: ${new Date(files[0].time).toISOString()}`);
 
     this.deploymentInfo = JSON.parse(
-      fs.readFileSync(path.join(deploymentsDir, latestFile), "utf8")
+      fs.readFileSync(path.join(deploymentsDir, latestFile), "utf8"),
     );
 
     return this.deploymentInfo;
   }
 
   /**
-   * Initialize provider based on environment
+   * Initialize provider AND signer from VERIFIER_PRIVATE_KEY env var.
+   * Falls back to read-only if no key is set (write calls will fail).
    */
   initializeProvider() {
-    const network = process.env.NETWORK || "localhost";
     const rpcUrl = process.env.RPC_URL || "http://127.0.0.1:8545";
+    const network = process.env.NETWORK || "localhost";
 
     console.log(`🌐 Connecting to ${network} at ${rpcUrl}`);
 
     this.provider = new ethers.JsonRpcProvider(rpcUrl);
+
+    const privateKey = process.env.VERIFIER_PRIVATE_KEY;
+    if (privateKey) {
+      this.signer = new ethers.Wallet(privateKey, this.provider);
+      console.log(`🔑 Backend signer loaded: ${this.signer.address}`);
+    } else {
+      console.warn(
+        "  VERIFIER_PRIVATE_KEY not set — contracts loaded read-only.\n" +
+          "   Write calls (e.g. recordOffChainVerification) will fail.\n" +
+          "   Add VERIFIER_PRIVATE_KEY to your .env file.",
+      );
+    }
+
     return this.provider;
   }
 
   /**
-   * Load all contract instances
+   * Load all contract instances.
+   * Contracts that need write access use the signer; others use the provider.
    */
   async loadContracts() {
     if (!this.deploymentInfo) {
@@ -61,83 +85,99 @@ class ContractLoader {
     }
 
     const { contracts: addresses } = this.deploymentInfo;
+    console.log("📋 Contract addresses:", addresses);
 
-    // Load contract artifacts
     const artifactsPath = path.join(
       __dirname,
       "..",
       "..",
       "artifacts",
       "contracts",
-      "interfaces"
+      "interfaces",
     );
 
-    // Load ReputationManager
+    // Use signer for contracts the backend needs to write to,
+    // provider for read-only contracts.
+    const signerOrProvider = this.signer || this.provider;
+
+    // ReputationManager — backend writes to this (recordOffChainVerification)
     const reputationManagerArtifact = require(
       path.join(
         artifactsPath,
         "ReputationManager.sol",
-        "ReputationManager.json"
-      )
+        "ReputationManager.json",
+      ),
     );
     this.contracts.reputationManager = new ethers.Contract(
       addresses.reputationManager,
       reputationManagerArtifact.abi,
-      this.provider
+      signerOrProvider, // ← signer so we can call write functions
     );
 
-    // Load PriceOracle
+    // PriceOracle — read-only
     const priceOracleArtifact = require(
-      path.join(artifactsPath, "PriceOracle.sol", "PriceOracle.json")
+      path.join(artifactsPath, "PriceOracle.sol", "PriceOracle.json"),
     );
     this.contracts.priceOracle = new ethers.Contract(
       addresses.priceOracle,
       priceOracleArtifact.abi,
-      this.provider
+      this.provider,
     );
 
-    // Load CollateralManager
+    // CollateralManager — read-only from backend
     const collateralManagerArtifact = require(
       path.join(
         artifactsPath,
         "CollateralManager.sol",
-        "CollateralManager.json"
-      )
+        "CollateralManager.json",
+      ),
     );
     this.contracts.collateralManager = new ethers.Contract(
       addresses.collateralManager,
       collateralManagerArtifact.abi,
-      this.provider
+      this.provider,
     );
 
-    // Load LendingPool
+    // LendingPool — read-only from backend
     const lendingPoolArtifact = require(
-      path.join(artifactsPath, "LendingPool.sol", "LendingPool.json")
+      path.join(artifactsPath, "LendingPool.sol", "LendingPool.json"),
     );
     this.contracts.lendingPool = new ethers.Contract(
       addresses.lendingPool,
       lendingPoolArtifact.abi,
-      this.provider
+      signerOrProvider,
     );
 
-    // Load CoSigningManager
+    // LendingPoolLens — read-only
+    const lendingPoolLensArtifact = require(
+      path.join(artifactsPath, "LendingPoolLens.sol", "LendingPoolLens.json"),
+    );
+    this.contracts.lendingPoolLens = new ethers.Contract(
+      addresses.lendingPoolLens,
+      lendingPoolLensArtifact.abi,
+      this.provider,
+    );
+
+    // CoSigningManager — read-only from backend
     const coSigningManagerArtifact = require(
-      path.join(artifactsPath, "CoSigningManager.sol", "CoSigningManager.json")
+      path.join(artifactsPath, "CoSigningManager.sol", "CoSigningManager.json"),
     );
     this.contracts.coSigningManager = new ethers.Contract(
       addresses.coSigningManager,
       coSigningManagerArtifact.abi,
-      this.provider
+      this.provider,
     );
 
-    console.log("✅ All contracts loaded successfully");
+    console.log("✅ Loaded contracts:", Object.keys(this.contracts));
+    if (this.signer) {
+      console.log(
+        `✅ ReputationManager connected with signer (${this.signer.address})`,
+      );
+    }
 
     return this.contracts;
   }
 
-  /**
-   * Get contract instance
-   */
   getContract(contractName) {
     if (!this.contracts[contractName]) {
       throw new Error(`Contract ${contractName} not loaded`);
@@ -145,16 +185,10 @@ class ContractLoader {
     return this.contracts[contractName];
   }
 
-  /**
-   * Get all contract addresses
-   */
   getAddresses() {
     return this.deploymentInfo?.contracts || {};
   }
 
-  /**
-   * Get network info
-   */
   getNetworkInfo() {
     return {
       network: this.deploymentInfo?.network,
@@ -163,9 +197,12 @@ class ContractLoader {
       timestamp: this.deploymentInfo?.timestamp,
     };
   }
+
+  /** Returns the backend signer address (useful for role checks) */
+  getSignerAddress() {
+    return this.signer?.address || null;
+  }
 }
 
-// Singleton instance
 const contractLoader = new ContractLoader();
-
 module.exports = contractLoader;

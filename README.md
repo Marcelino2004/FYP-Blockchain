@@ -24,18 +24,32 @@ Sepolia
 
 2. update deploy.js token address to the deployed mock addresses in step 1
 
-3. yarn hardhat run scripts/deploy.js --network localhost
+3. yarn hardhat run scripts/deploy.js --network sepolia
 
-4. cd backend + yarn run nodemon backend/server.js
+4. Copy contract addresses from step 3 into frontend's env
 
-5. cd .. + cd frontenc + yarn run dev
+5. (New terminal) cd backend + yarn run nodemon backend/server.js
+
+6. (New terminal) cd frontend + yarn run dev
+
+---
 
 Locally
 
 1. yarn hardhat node
 
-2. yarn hardhat run scripts/deploy-local.js --network localhost
+2. (New terminal) yarn hardhat run scripts/deploy-local.js --network localhost
 
-3. cd backend + yarn run nodemon backend/server.js
+3. yarn hardhat run scripts/grant-verifier-role.js --network localhost
 
-4. cd .. + cd frontend + yarn run dev
+4. (New terminal) cd backend + yarn run nodemon backend/server.js
+
+5. (New terminal) cd frontend + yarn run dev
+
+To add mock tokens for local deployment:
+
+1. Import private key of any of the first 10 accounts in hardhat node to metamask
+
+2. Connect to the localhost network
+
+3. Import mock tokens WETH, WBTC, USDC (from deploy-local terminal)
