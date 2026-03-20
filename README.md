@@ -119,10 +119,6 @@ Wait until deployment completes. The contract addresses printed should match tho
 ```bash
 yarn hardhat run scripts/grant-verifier-role.js --network localhost
 ```
-You should see:
-```
-✅ VERIFIER_ROLE granted!
-```
 
 ---
 
@@ -138,10 +134,6 @@ This mints WETH, USDC, and WBTC to the first 10 Hardhat accounts.
 ```bash
 cd backend
 yarn run nodemon backend/server.js 
-```
-Wait until you see:
-```
-✅ Backend server running!
 ```
 
 ---
