@@ -970,18 +970,26 @@ const AcceptOfferModal = ({ isOpen, onClose, offer, onSuccess }) => {
           await approveTx.wait();
           console.log('   Collateral approved');
 
-          console.log('   Reading nextLoanId to predict loanId...');
-          const predictedLoanId = await contracts.lendingPool.nextLoanId();
-          console.log('   Predicted loanId:', predictedLoanId.toString());
-
-          console.log('   Depositing collateral...');
-          
+          // ─────────────────────────────────────────────────────────────────
+          // FIX: Deposit collateral using nextDepositId as the loanId.
+          //
+          // LendingPool.acceptLoanOffer calls:
+          //   collateralManager.isCollateralSufficient(collateralDepositId, ...)
+          //
+          // CollateralManager.isCollateralSufficient(loanId, ...) looks up:
+          //   loanToDepositIds[loanId]
+          //
+          // So we need the deposit stored under key = depositId, not loanId.
+          // By passing nextDepositId as loanId to depositCollateral, the deposit
+          // gets stored in loanToDepositIds[depositId], which the check finds.
+          // ─────────────────────────────────────────────────────────────────
           const nextDepositId = await contracts.collateralManager.nextDepositId();
           depositId = Number(nextDepositId);
           console.log('   Predicted Deposit ID:', depositId);
 
+          console.log('   Depositing collateral (using depositId as loanId key)...');
           const depositTx = await contracts.collateralManager.depositCollateral(
-            predictedLoanId,
+            depositId,           // ← FIX: was predictedLoanId, now depositId
             collateralTokenAddress,
             collateralAmount
           );
@@ -991,14 +999,10 @@ const AcceptOfferModal = ({ isOpen, onClose, offer, onSuccess }) => {
         }
 
         console.log('Accepting loan offer with deposit ID:', depositId);
-        console.log('   depositId type:', typeof depositId);
-        console.log('   Accepting loan offer with deposit ID:', depositId);
         const tx = await contracts.lendingPool.acceptLoanOffer(
           offer.offerId,
           depositId
         );
-
-        
 
         console.log('Waiting for confirmation...', tx.hash);
         const receipt = await tx.wait();

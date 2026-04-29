@@ -46,7 +46,7 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\LendingPool.sol": {
-      "lastModificationDate": 1774013291851,
+      "lastModificationDate": 1774018139834,
       "contentHash": "c74af68764332a1ceec379862ee54120",
       "sourceName": "contracts/interfaces/LendingPool.sol",
       "solcConfig": {
@@ -194,8 +194,8 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\CoSigningManager.sol": {
-      "lastModificationDate": 1774013171424,
-      "contentHash": "9a346f24d34af3942392f819bce5be2d",
+      "lastModificationDate": 1774018139829,
+      "contentHash": "151e8aea0f5acf6a2fe64dc1c7bcc038",
       "sourceName": "contracts/interfaces/CoSigningManager.sol",
       "solcConfig": {
         "version": "0.8.20",
@@ -922,7 +922,7 @@
       ]
     },
     "C:\\Users\\User\\OneDrive - Nanyang Technological University\\Documents\\Courses\\FYP\\hardhat-decentralised-lending-system\\contracts\\interfaces\\LendingPoolLens.sol": {
-      "lastModificationDate": 1772973121824,
+      "lastModificationDate": 1774018139835,
       "contentHash": "e30fa94128565a1f36d391c751093eea",
       "sourceName": "contracts/interfaces/LendingPoolLens.sol",
       "solcConfig": {
