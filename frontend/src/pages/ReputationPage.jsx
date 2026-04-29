@@ -413,7 +413,7 @@ const ReputationPage = () => {
             repayment behavior, and overall platform activity.
           </p>
 
-        <DailyCapBar gained={gainedToday/2} remaining={remainingCap} max={MAX_DAILY_GAIN} />
+        <DailyCapBar gained={MAX_DAILY_GAIN - parseInt(remainingCap)} remaining={remainingCap} max={MAX_DAILY_GAIN} />
         </div>
       </Card>
 
